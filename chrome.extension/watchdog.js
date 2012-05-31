@@ -1,13 +1,17 @@
 
 
 
-var layouts = new Queue(),
-	currentLayoutHtml = '',
-	playerWindowReady = false;
-var playerTab,
-	playerWindow;
+var version = 'v1',
+	
+	layouts = new Queue(), // for v2
+	currentLayoutHtml = '', // for v1
+	currentDuration = 0, // for v1
+	
+	playerWindowReady = false,
+	playerTab,
+	playerWindow,
 
-var isPlayerWindow = function() { return false; };
+	isPlayerWindow = function() { return false; };
 
 function playerWindowReadyNotification(theWindow) {
 	console.log('playerWindowReadyNotification() executed');
@@ -120,31 +124,36 @@ function setPlayerLayoutIfNecessary(version) {
 	}
 }
 function startPlayerWindowSlideInterval(version) {
-	console.log(/*layouts.peek().ttl*1000*/5000);
+	console.log(currentDuration);
 	
 	setPlayerLayoutIfNecessary(version);
-	if (version == 'v1') {
-		getLayout(version);
+	
+	function dynamicSetInterval(duration, action) {
+		playerWindowSlideInterval = setTimeout(function() {
+			action();
+			dynamicSetInterval(currentDuration, action);
+		}, duration);
 	}
-	playerWindowSlideInterval = setInterval(function() {
+	dynamicSetInterval(currentDuration, function() {
 		console.log('Slide interval (BLAH)');
 		
 		if (version == 'v1') {
-			currentLayoutHtml = _layoutLoader.html();
+			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after this the current slide's current duration (see the if statement directly below this call to dynamicSetInterval()).
+			currentDuration = parseInt( _layoutLoader.find('#delay').text() );
 			getLayout(version);
 		}
 		else if (version == 'v2') {
 			layouts.dequeue(); // remove the layout we've already used from the queue.
 		}
 		
-		layoutIsSet = false; // we need a new layout, so false
+		layoutIsSet = false; // we need to set a new layout, so false. setPlayerLayoutIfNecessary() uses layoutIsSet.
 		setPlayerLayoutIfNecessary(version);
 		
 		clearInterval(playerWindowCheckInterval);
-		playerWindowCheckInterval = setInterval(function(){
-			setPlayerLayoutIfNecessary(version);
+		playerWindowCheckInterval = setInterval(function() { // this interval is to check that the player isn't crashed or closed.
+			setPlayerLayoutIfNecessary(version); // TODO: make sure to add testing for sad tabs in setPlayerLayoutIfNecessary.
 		}, 50);
-	}, /*layouts.peek().ttl*1000*/5000);
+	});
 }
 
 
@@ -152,7 +161,6 @@ function startPlayerWindowSlideInterval(version) {
 $(document).ready(function() {
 	
 	// Get some initial layoutss. Five is a good number.
-	var version = 'v1';
 	if (version == 'v1') {
 		getLayout(version);
 	}
@@ -178,7 +186,9 @@ $(document).ready(function() {
 		if (version == 'v1') {
 			if (_layoutLoader) {
 				currentLayoutHtml = _layoutLoader.html();
-				startPlayerWindowSlideInterval(version);
+				currentDuration = _layoutLoader.find('#delay').text();
+				startPlayerWindowSlideInterval(version); // uses currentDuration, so don't call getLayout() until after.
+				getLayout(version);
 				clearInterval(initialInterval);
 			}
 		}
