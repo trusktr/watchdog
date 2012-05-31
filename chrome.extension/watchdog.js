@@ -6,6 +6,8 @@ var version = 'v1',
 	layouts = new Queue(), // for v2
 	currentLayoutHtml = '', // for v1
 	currentDuration = 0, // for v1
+	getLayoutAction = 'update', // for v1
+	isGettingLayout = false, // for v1
 	
 	playerWindowReady = false,
 	playerTab,
@@ -52,9 +54,10 @@ function getLayout(callback) {
 		_layoutLoader = $('<div id="layoutLoader"></div>');
 		console.log(_layoutLoader.attr('id'));
 		
-		_layoutLoader.load('http://127.0.0.1:3437/?action=update div', function(){
-			console.log('Layout HTML loaded: (BLAH)');
-			console.log(_layoutLoader.html());
+		_layoutLoader.load('http://127.0.0.1:3437/?action='+getLayoutAction+' div', function(){
+			// console.log(_layoutLoader.html());
+			isGettingLayout = false;
+			getLayoutAction = 'update'; // reset this if it was changed.
 			if (typeof callback == 'function') callback();
 		});
 	}
@@ -102,11 +105,10 @@ var playerWindowCheckInterval,
 	layoutIsSet = false;
 	
 function setPlayerLayoutIfNecessary() {
-	
 	if (playerWindowReady) {
 		if (!layoutIsSet) {
 			if (version == 'v1') {
-				if (currentLayoutHtml) {
+				if (currentLayoutHtml && !isGettingLayout) {
 					playerWindow.setLayout(version, currentLayoutHtml);
 				}
 			}
@@ -142,6 +144,9 @@ function Timer(duration, action) {
 	this.isPaused = function() {
 		return paused;
 	};
+	this.setRemaining = function(newValue) {
+		remaining = newValue;
+	};
 	this.resume();
 };
 
@@ -158,11 +163,10 @@ function startPlayerWindowSlideInterval() {
 	// }
 	
 	playerWindowSlideInterval = new Timer(currentDuration, function() {
-		console.log('Slide interval (BLAH)');
-		
 		if (version == 'v1') {
 			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after this the current slide's current duration (see the if statement directly below this call to dynamicSetInterval()).
 			currentDuration = parseInt( _layoutLoader.find('#delay').text() );
+			isGettingLayout = true;
 			getLayout();
 		}
 		else if (version == 'v2') {
@@ -179,9 +183,27 @@ function startPlayerWindowSlideInterval() {
 	});
 }
 
+function back() {
+	console.log('Going to previous slide.');
+	getLayoutAction = 'back'; // FIXME: the next and back commands happen one slide late. 
+	playerWindowSlideInterval.pause();
+	playerWindowSlideInterval.setRemaining(0);
+	playerWindowSlideInterval.resume();
+}
+
+function next() {
+	console.log('Going to next slide.');
+	getLayoutAction = 'next';
+	playerWindowSlideInterval.pause();
+	playerWindowSlideInterval.setRemaining(0);
+	playerWindowSlideInterval.resume();
+}
+function stats() {
+	
+}
+
 function doKeyAction(e) { // requires Timer class
 	console.log('keypress!');
-	return;
 	var code;
 	if (!e) e = window.event;
 	if (e.keyCode) code = e.keyCode;
@@ -199,8 +221,9 @@ function doKeyAction(e) { // requires Timer class
 				vids[i].pause();
 			}
 		}
-	} else if (code === 66) { back(); } // b
-	else if (code === 77) { stats(); } // 
+	}
+	else if (code === 66) { back(); } // b
+	else if (code === 77) { stats(); } // m
 	else if (code === 78) { next(); } // n
 };
 
