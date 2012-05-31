@@ -2,6 +2,7 @@
 
 
 var layouts = new Queue(),
+	currentLayoutHtml = '',
 	playerWindowReady = false;
 var playerTab,
 	playerWindow;
@@ -15,7 +16,7 @@ function playerWindowReadyNotification(theWindow) {
 	playerWindowReady = true;
 	console.log(playerWindow); // useful to see what the window object contains.
 	
-	setPlayerLayoutIfNecessary();
+	setPlayerLayoutIfNecessary('v1');
 }
 
 function playerWindowUnloadNotification() {
@@ -36,18 +37,32 @@ function playerWindowActions() {
 
 
 
-var tempCounter = 0;
-function getLayout(callback) {
+var tempCounter = 0,
+	_layoutLoader;
+
+function getLayout(version, callback) {
 	var layoutData = {},
 		jsonComplete = false;
 	
-	$.getJSON('http://127.0.0.1:3437/?action=update', function(data){
-		layoutData = data;
-		console.log(layoutData);
-		layouts.enqueue(layoutData);
-		jsonComplete = true;
-		if (typeof callback == 'function') callback();
-	});
+	if (version == 'v1') {
+		_layoutLoader = $('<div id="layoutLoader"></div>');
+		console.log(_layoutLoader.attr('id'));
+		
+		_layoutLoader.load('http://127.0.0.1:3437/?action=update div', function(){
+			console.log('Layout HTML loaded: (BLAH)');
+			console.log(_layoutLoader.html());
+			if (typeof callback == 'function') callback();
+		});
+	}
+	else if (version == 'v2') {
+		$.getJSON('http://127.0.0.1:3437/?action=update', function(data){
+			layoutData = data;
+			console.log(layoutData);
+			layouts.enqueue(layoutData);
+			jsonComplete = true;
+			if (typeof callback == 'function') callback();
+		});
+	}
 	
 	// if (tempCounter >= 11) {
 		// tempCounter = 0;
@@ -82,14 +97,21 @@ var playerWindowCheckInterval,
 	playerWindowSlideInterval,
 	layoutIsSet = false;
 	
-function setPlayerLayoutIfNecessary() {
+function setPlayerLayoutIfNecessary(version) {
 	
 	if (playerWindowReady) {
 		if (!layoutIsSet) {
-			if ( !layouts.isEmpty() ) {
-				// playerWindow.$('#layoutContainer').append( $('<div>'+layouts.peek().partitions[0].media+'</div>') );
-				playerWindow.setLayout(layouts.peek());
-				layoutIsSet = true;
+			if (version == 'v1') {
+				if (currentLayoutHtml) {
+					playerWindow.setLayout(version, currentLayoutHtml);
+				}
+			}
+			else if (version == 'v2') {
+				if ( !layouts.isEmpty() ) {
+					// playerWindow.$('#layoutContainer').append( $('<div>'+layouts.peek().partitions[0].media+'</div>') );
+					playerWindow.setLayout(version, layouts.peek());
+					layoutIsSet = true;
+				}
 			}
 		}
 	}
@@ -97,21 +119,32 @@ function setPlayerLayoutIfNecessary() {
 		layoutIsSet = false;
 	}
 }
-function startPlayerWindowSlideInterval() {
-	console.log(layouts.peek().ttl);
+function startPlayerWindowSlideInterval(version) {
+	console.log(/*layouts.peek().ttl*1000*/5000);
 	
-	setPlayerLayoutIfNecessary();
+	setPlayerLayoutIfNecessary(version);
+	if (version == 'v1') {
+		getLayout(version);
+	}
 	playerWindowSlideInterval = setInterval(function() {
-		layouts.dequeue(); // remove the layout we've already used from the queue.
+		console.log('Slide interval (BLAH)');
+		
+		if (version == 'v1') {
+			currentLayoutHtml = _layoutLoader.html();
+			getLayout(version);
+		}
+		else if (version == 'v2') {
+			layouts.dequeue(); // remove the layout we've already used from the queue.
+		}
 		
 		layoutIsSet = false; // we need a new layout, so false
-		setPlayerLayoutIfNecessary();
+		setPlayerLayoutIfNecessary(version);
 		
 		clearInterval(playerWindowCheckInterval);
 		playerWindowCheckInterval = setInterval(function(){
-			setPlayerLayoutIfNecessary();
+			setPlayerLayoutIfNecessary(version);
 		}, 50);
-	}, layouts.peek().ttl*1000);
+	}, /*layouts.peek().ttl*1000*/5000);
 }
 
 
@@ -119,11 +152,17 @@ function startPlayerWindowSlideInterval() {
 $(document).ready(function() {
 	
 	// Get some initial layoutss. Five is a good number.
-	getLayout();
-	getLayout();
-	getLayout();
-	getLayout();
-	getLayout();
+	var version = 'v1';
+	if (version == 'v1') {
+		getLayout(version);
+	}
+	else if (version == 'v2') {
+		getLayout(version);
+		getLayout(version);
+		getLayout(version);
+		getLayout(version);
+		getLayout(version);
+	}
 
 	createPlayerWindow(playerWindowActions);
 	chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
@@ -133,7 +172,23 @@ $(document).ready(function() {
 		}
 	});
 	
-	startPlayerWindowSlideInterval();
+	var initialInterval;
+	initialInterval = setInterval(function() {
+		console.log('initial interval');
+		if (version == 'v1') {
+			if (_layoutLoader) {
+				currentLayoutHtml = _layoutLoader.html();
+				startPlayerWindowSlideInterval(version);
+				clearInterval(initialInterval);
+			}
+		}
+		else if (version == 'v2') {
+			if (layouts.getLength()) {
+				startPlayerWindowSlideInterval(version);
+				clearInterval(initialInterval);
+			}
+		}
+	}, 100);
 	
 	
 });
