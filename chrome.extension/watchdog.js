@@ -20,7 +20,7 @@ function playerWindowReadyNotification(theWindow) {
 	playerWindowReady = true;
 	console.log(playerWindow); // useful to see what the window object contains.
 	
-	setPlayerLayoutIfNecessary('v1');
+	setPlayerLayoutIfNecessary();
 }
 
 function playerWindowUnloadNotification() {
@@ -44,7 +44,7 @@ function playerWindowActions() {
 var tempCounter = 0,
 	_layoutLoader;
 
-function getLayout(version, callback) {
+function getLayout(callback) {
 	var layoutData = {},
 		jsonComplete = false;
 	
@@ -101,7 +101,7 @@ var playerWindowCheckInterval,
 	playerWindowSlideInterval,
 	layoutIsSet = false;
 	
-function setPlayerLayoutIfNecessary(version) {
+function setPlayerLayoutIfNecessary() {
 	
 	if (playerWindowReady) {
 		if (!layoutIsSet) {
@@ -123,10 +123,10 @@ function setPlayerLayoutIfNecessary(version) {
 		layoutIsSet = false;
 	}
 }
-function startPlayerWindowSlideInterval(version) {
+function startPlayerWindowSlideInterval() {
 	console.log(currentDuration);
 	
-	setPlayerLayoutIfNecessary(version);
+	setPlayerLayoutIfNecessary();
 	
 	function dynamicSetInterval(duration, action) {
 		playerWindowSlideInterval = setTimeout(function() {
@@ -140,18 +140,18 @@ function startPlayerWindowSlideInterval(version) {
 		if (version == 'v1') {
 			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after this the current slide's current duration (see the if statement directly below this call to dynamicSetInterval()).
 			currentDuration = parseInt( _layoutLoader.find('#delay').text() );
-			getLayout(version);
+			getLayout();
 		}
 		else if (version == 'v2') {
 			layouts.dequeue(); // remove the layout we've already used from the queue.
 		}
 		
 		layoutIsSet = false; // we need to set a new layout, so false. setPlayerLayoutIfNecessary() uses layoutIsSet.
-		setPlayerLayoutIfNecessary(version);
+		setPlayerLayoutIfNecessary();
 		
 		clearInterval(playerWindowCheckInterval);
 		playerWindowCheckInterval = setInterval(function() { // this interval is to check that the player isn't crashed or closed.
-			setPlayerLayoutIfNecessary(version); // TODO: make sure to add testing for sad tabs in setPlayerLayoutIfNecessary.
+			setPlayerLayoutIfNecessary(); // TODO: make sure to add testing for sad tabs in setPlayerLayoutIfNecessary.
 		}, 50);
 	});
 }
@@ -162,14 +162,14 @@ $(document).ready(function() {
 	
 	// Get some initial layoutss. Five is a good number.
 	if (version == 'v1') {
-		getLayout(version);
+		getLayout();
 	}
 	else if (version == 'v2') {
-		getLayout(version);
-		getLayout(version);
-		getLayout(version);
-		getLayout(version);
-		getLayout(version);
+		getLayout();
+		getLayout();
+		getLayout();
+		getLayout();
+		getLayout();
 	}
 
 	createPlayerWindow(playerWindowActions);
@@ -187,14 +187,14 @@ $(document).ready(function() {
 			if (_layoutLoader) {
 				currentLayoutHtml = _layoutLoader.html();
 				currentDuration = _layoutLoader.find('#delay').text();
-				startPlayerWindowSlideInterval(version); // uses currentDuration, so don't call getLayout() until after.
-				getLayout(version);
+				startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
+				getLayout();
 				clearInterval(initialInterval);
 			}
 		}
 		else if (version == 'v2') {
 			if (layouts.getLength()) {
-				startPlayerWindowSlideInterval(version);
+				startPlayerWindowSlideInterval();
 				clearInterval(initialInterval);
 			}
 		}
