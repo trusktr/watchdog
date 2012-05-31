@@ -62,6 +62,10 @@ $(document).ready(function() {
 	$('body').on('contextmenu', function() {
 		return false;
 	});
+		
+	$(window).on('keyup', function(e) {
+		backgroundPage.doKeyAction(e);
+	});
 });
 
 

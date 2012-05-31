@@ -123,18 +123,41 @@ function setPlayerLayoutIfNecessary() {
 		layoutIsSet = false;
 	}
 }
+
+function Timer(duration, action) {
+	var timerId, paused, start, remaining = duration;
+	this.pause = function() {
+		paused = true;
+		window.clearTimeout(timerId);
+		remaining -= new Date() - start;
+	};
+	this.resume = function() {
+		paused = false;
+		start = new Date();
+		timerId = window.setTimeout(function() {
+			action();
+			playerWindowSlideInterval = new Timer(currentDuration, action);
+		}, remaining);
+	};
+	this.isPaused = function() {
+		return paused;
+	};
+	this.resume();
+};
+
 function startPlayerWindowSlideInterval() {
 	console.log(currentDuration);
 	
 	setPlayerLayoutIfNecessary();
 	
-	function dynamicSetInterval(duration, action) {
-		playerWindowSlideInterval = setTimeout(function() {
-			action();
-			dynamicSetInterval(currentDuration, action);
-		}, duration);
-	}
-	dynamicSetInterval(currentDuration, function() {
+	// function dynamicSetInterval(duration, action) {
+		// playerWindowSlideInterval = setTimeout(function() {
+			// action();
+			// dynamicSetInterval(currentDuration, action);
+		// }, duration);
+	// }
+	
+	playerWindowSlideInterval = new Timer(currentDuration, function() {
 		console.log('Slide interval (BLAH)');
 		
 		if (version == 'v1') {
@@ -156,51 +179,82 @@ function startPlayerWindowSlideInterval() {
 	});
 }
 
+function doKeyAction(e) { // requires Timer class
+	console.log('keypress!');
+	return;
+	var code;
+	if (!e) e = window.event;
+	if (e.keyCode) code = e.keyCode;
+	if (code === 32) { // space
+		if (playerWindowSlideInterval.isPaused()) {
+			playerWindowSlideInterval.resume();
+			var vids = playerWindow.document.getElementsByTagName('video');
+			for (var i = 0; i < vids.length; i++) {
+				vids[i].play();
+			}
+		} else {
+			playerWindowSlideInterval.pause();
+			var vids = playerWindow.document.getElementsByTagName('video');
+			for (var i = 0; i < vids.length; i++) {
+				vids[i].pause();
+			}
+		}
+	} else if (code === 66) { back(); } // b
+	else if (code === 77) { stats(); } // 
+	else if (code === 78) { next(); } // n
+};
+
 
 
 $(document).ready(function() {
+	//determine version.
+	var _versionDiv = $('<div></div>');
+	_versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
+		version = 'v'+_versionDiv.text();
+		console.log(version);
 	
-	// Get some initial layoutss. Five is a good number.
-	if (version == 'v1') {
-		getLayout();
-	}
-	else if (version == 'v2') {
-		getLayout();
-		getLayout();
-		getLayout();
-		getLayout();
-		getLayout();
-	}
-
-	createPlayerWindow(playerWindowActions);
-	chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
-		if (tabId == playerTab.id) { // if the player tab was closed...
-			//open a new one and send a crash report.
-			createPlayerWindow(playerWindowActions);
-		}
-	});
-	
-	var initialInterval;
-	initialInterval = setInterval(function() {
-		console.log('initial interval');
+		// Get some initial layoutss. Five is a good number.
 		if (version == 'v1') {
-			if (_layoutLoader) {
-				currentLayoutHtml = _layoutLoader.html();
-				currentDuration = _layoutLoader.find('#delay').text();
-				startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
-				getLayout();
-				clearInterval(initialInterval);
-			}
+			getLayout();
 		}
 		else if (version == 'v2') {
-			if (layouts.getLength()) {
-				startPlayerWindowSlideInterval();
-				clearInterval(initialInterval);
-			}
+			getLayout();
+			getLayout();
+			getLayout();
+			getLayout();
+			getLayout();
 		}
-	}, 100);
-	
-	
+
+		createPlayerWindow(playerWindowActions);
+		chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
+			if (tabId == playerTab.id) { // if the player tab was closed...
+				//open a new one and send a crash report.
+				createPlayerWindow(playerWindowActions);
+			}
+		});
+		
+		var initialInterval;
+		initialInterval = setInterval(function() {
+			console.log('initial interval');
+			if (version == 'v1') {
+				if (_layoutLoader) {
+					currentLayoutHtml = _layoutLoader.html();
+					currentDuration = _layoutLoader.find('#delay').text();
+					startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
+					getLayout();
+					clearInterval(initialInterval);
+				}
+			}
+			else if (version == 'v2') {
+				if (layouts.getLength()) {
+					startPlayerWindowSlideInterval();
+					clearInterval(initialInterval);
+				}
+			}
+		}, 100);
+		
+		
+	});
 });
 
 
