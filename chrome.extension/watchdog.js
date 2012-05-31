@@ -1,7 +1,7 @@
 
 
 
-var layoutData = new Queue(),
+var layouts = new Queue(),
 	playerWindowReady = false;
 var playerTab,
 	playerWindow;
@@ -37,36 +37,45 @@ function playerWindowActions() {
 
 
 var tempCounter = 0;
-function getLayout() {
-	// $.getJSON('http://localhost:3437', function(data){
-		// layoutData.enqueue(data);
-		// console.log(data);
-		// /*display data as a layout for ttl seconds.*/
-	// });
+function getLayout(callback) {
+	var layoutData = {},
+		jsonComplete = false;
 	
-	var layout = {
-		"id": 10,
-		"ttl": Math.floor( (Math.random()*/*B*/1) + /*A*/4 ), //random number from A to B
-		"title": "Airport Storage",
-		"partitions": [{
-			"x": 0,
-			"y": 0,
-			"h": 100,
-			"w": 50,
-			"media": "test"+(++tempCounter)+".jpg",
-			"media_md5": "bfaif97f8ab745b0587de1dcf1dbf6bc"
-		}, {
-			"x": 50,
-			"y": 0,
-			"h": 100,
-			"w": 100,
-			"media": "test"+(++tempCounter)+".jpg",
-			"media_md5": "bfa2067wd7b7edy7587de1dcf1dbf6bc"
-		}],
-		"overlays": []
-	};
+	$.getJSON('http://127.0.0.1:3437/?action=update', function(data){
+		layoutData = data;
+		console.log(layoutData);
+		layouts.enqueue(layoutData);
+		jsonComplete = true;
+		if (typeof callback == 'function') callback();
+	});
 	
-	return layout;
+	// if (tempCounter >= 11) {
+		// tempCounter = 0;
+	// }
+	
+	// var layoutData = {
+		// "id": 10,
+		// "ttl": Math.floor( (Math.random()*/*B*/1) + /*A*/15 ), //random number from A to B
+		// "title": "Airport Storage",
+		// "partitions": [{
+			// "x": 0,
+			// "y": 0,
+			// "h": 100,
+			// "w": 50,
+			// "media": "test"+(++tempCounter)+".png",
+			// "media_md5": "bfaif97f8ab745b0587de1dcf1dbf6bc"
+		// }, {
+			// "x": 50,
+			// "y": 0,
+			// "h": 100,
+			// "w": 50,
+			// "media": "test"+(++tempCounter)+".png",
+			// "media_md5": "bfa2067wd7b7edy7587de1dcf1dbf6bc"
+		// }],
+		// "overlays": []
+	// };
+	
+	// return layoutData;
 }
 	
 var playerWindowCheckInterval,
@@ -77,8 +86,11 @@ function setPlayerLayoutIfNecessary() {
 	
 	if (playerWindowReady) {
 		if (!layoutIsSet) {
-			playerWindow.$('#layoutContainer').append( $('<div>'+layoutData.peek().partitions[0].media+'</div>') );
-			layoutIsSet = true;
+			if ( !layouts.isEmpty() ) {
+				// playerWindow.$('#layoutContainer').append( $('<div>'+layouts.peek().partitions[0].media+'</div>') );
+				playerWindow.setLayout(layouts.peek());
+				layoutIsSet = true;
+			}
 		}
 	}
 	else if (!playerWindowReady) {
@@ -86,12 +98,11 @@ function setPlayerLayoutIfNecessary() {
 	}
 }
 function startPlayerWindowSlideInterval() {
-	console.log(layoutData.peek().ttl);
+	console.log(layouts.peek().ttl);
 	
 	setPlayerLayoutIfNecessary();
 	playerWindowSlideInterval = setInterval(function() {
-		layoutData.dequeue(); // remove the layout we've already used from the queue.
-		layoutData.enqueue(getLayout()); // add another layout to the queue to keep things balanced.
+		layouts.dequeue(); // remove the layout we've already used from the queue.
 		
 		layoutIsSet = false; // we need a new layout, so false
 		setPlayerLayoutIfNecessary();
@@ -100,22 +111,19 @@ function startPlayerWindowSlideInterval() {
 		playerWindowCheckInterval = setInterval(function(){
 			setPlayerLayoutIfNecessary();
 		}, 50);
-	}, layoutData.peek().ttl*1000);
+	}, layouts.peek().ttl*1000);
 }
 
 
 
 $(document).ready(function() {
 	
-	// Get some initial layouts. Five is a good number.
-	layoutData.enqueue(getLayout());
-	layoutData.enqueue(getLayout());
-	layoutData.enqueue(getLayout());
-	layoutData.enqueue(getLayout());
-	layoutData.enqueue(getLayout());
-
-	console.log("layoutData: ");
-	console.log(layoutData);
+	// Get some initial layoutss. Five is a good number.
+	getLayout();
+	getLayout();
+	getLayout();
+	getLayout();
+	getLayout();
 
 	createPlayerWindow(playerWindowActions);
 	chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
