@@ -51,17 +51,18 @@ function createPlayerWindow(callback) {
 var _layoutLoader;
 
 function getLayout(callback) {
+	console.log('Getting layout content.');
+	
 	var layoutData = {},
 		jsonComplete = false;
 	
 	if (version == 'v1') {
 		_layoutLoader = $('<div id="layoutLoader"></div>');
-		console.log(_layoutLoader.attr('id'));
 		
 		_layoutLoader.load('http://127.0.0.1:3437/?action='+getLayoutAction+' div', function(){
-			// console.log(_layoutLoader.html());
 			isGettingLayout = false;
 			getLayoutAction = 'update'; // reset this if it was changed.
+			console.log('Done getting layout content.');
 			if (typeof callback == 'function') callback();
 		});
 	}
@@ -71,6 +72,7 @@ function getLayout(callback) {
 			console.log(layoutData);
 			layouts.enqueue(layoutData);
 			jsonComplete = true;
+			console.log('Done getting layout content.');
 			if (typeof callback == 'function') callback();
 		});
 	}
@@ -79,18 +81,22 @@ function getLayout(callback) {
 function setPlayerTabContent() {
 	console.log('Setting the player window content.');
 	if (version == 'v1') {
-		playerConnection.postMessage({
-			setPlayerTabContent: true,
-			version: version,
-			layoutData: currentLayoutHtml
-		});
+		if (playerConnection) {
+			playerConnection.postMessage({
+				setPlayerTabContent: true,
+				version: version,
+				layoutData: currentLayoutHtml
+			});
+		}
 	}
 	else if (version == 'v2') {
-		playerConnection.postMessage({
-			setPlayerTabContent: true,
-			version: version,
-			layoutData: layouts.peek()
-		});
+		if (playerConnection) {
+			playerConnection.postMessage({
+				setPlayerTabContent: true,
+				version: version,
+				layoutData: layouts.peek()
+			});
+		}
 	}
 }
 
@@ -121,9 +127,10 @@ function Timer(duration, action) {
 };
 
 function startContentPlaybackInterval() {
-	console.log('The current content will show for '+currentDuration+' milliseconds.');
+	console.log('Starting playback of content.');
 	
 	playerWindowSlideInterval = new Timer(currentDuration, function() {
+		console.log('The last layout showed for '+(currentDuration/1000)+' seconds.');
 		if (version == 'v1') {
 			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
 			currentDuration = parseInt( _layoutLoader.find('#delay').text() );
@@ -198,56 +205,12 @@ function detectPlayerTab(tabId, changeInfo, tab) { // start when the player wind
 		pollForPlayerId = setInterval(function() {
 			if (Player) {
 				clearInterval(pollForPlayerId);
-				console.log('Connecting to Player ('+Player+')...');
+				console.log('Creating connection to Player ('+Player+')...');
 				playerConnection = chrome.extension.connect(Player);
 			}
 		}, 100);
 	}
 }
-
-/*First we poll for the connectiong to Player*/
-var pollForPlayerConnection;
-pollForPlayerConnection = setInterval(function() {
-	if (playerConnection) {
-		console.log('Connected to Player.');
-		clearInterval(pollForPlayerConnection);
-		playerConnection.onMessage.addListener(function(msg) {
-			if (msg.playerTabReady) {
-				playerTab = msg.playerTab;
-			}
-			if (msg.playerTabUnload) {
-				playerWindowReady = false;
-			}
-		});
-		playerConnection.onDisconnect.addListener(function() {
-			console.log('Connection to Player disconnected.');
-		});
-		
-		/*And then we poll to see if we have content.*/
-		var pollForContentAvailable;
-		pollForContentAvailable = setInterval(function() {
-			console.log('Polling for initial content.');
-			if (version == 'v1') {
-				if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
-					currentLayoutHtml = _layoutLoader.html();
-					currentDuration = _layoutLoader.find('#delay').text();
-					console.log('Starting content playback.');
-					setPlayerTabContent();
-					startContentPlaybackInterval(); // uses currentDuration, so don't call getLayout() until after.
-					getLayout(); // TODO: put above previous line?
-					clearInterval(pollForContentAvailable);
-				}
-			}
-			else if (version == 'v2') {
-				if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
-					setPlayerTabContent();
-					startContentPlaybackInterval();
-					clearInterval(pollForContentAvailable);
-				}
-			}
-		}, 100);
-	}
-}, 100);
 
 chrome.tabs.onUpdated.addListener(detectPlayerTab);
 
@@ -258,8 +221,10 @@ $(document).ready(function() {
 	// _versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
 		// version = 'v'+_versionDiv.text();
 		version = 'v1';
+		console.log('Watchdog ready.');
 		console.log('Unitclient Version: '+version);
 	
+		console.log('Getting initial content.');
 		if (version == 'v1') {
 			// Get the first layout.
 			getLayout();
@@ -272,8 +237,60 @@ $(document).ready(function() {
 			getLayout();
 			getLayout();
 		}
-		
 	// });
+
+	/*First we poll for the connection to Player*/
+	console.log('Polling for the connection to Player.');
+	var pollForPlayerConnection;
+	pollForPlayerConnection = setInterval(function() {
+		if (playerConnection) {
+			console.log('Connected to Player.');
+			clearInterval(pollForPlayerConnection);
+			console.log('Establishing listeners for messages from Player.');
+			playerConnection.onMessage.addListener(function(msg) {
+				if (msg.playerTabReady) {
+					console.log('The player tab is ready.');
+					playerTab = msg.playerTab;
+				}
+				if (msg.playerTabUnload) {
+					console.log('The player tab was closed.');
+					playerWindowReady = false;
+				}
+			});
+			playerConnection.onDisconnect.addListener(function() {
+				console.log('### Connection to Player lost. ###');
+				playerConnection = false;
+				console.log('Attempting to reload Player.');
+			});
+			
+			/*And then we poll to see if we have content.*/
+			console.log('Polling for initial content.');
+			var pollForContentAvailable;
+			pollForContentAvailable = setInterval(function() {
+				if (version == 'v1') {
+					if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
+						console.log('Initial content available.');
+						console.log('Setting up initial content.');
+						currentLayoutHtml = _layoutLoader.html();
+						currentDuration = _layoutLoader.find('#delay').text();
+						setPlayerTabContent();
+						startContentPlaybackInterval(); // uses currentDuration, so don't call getLayout() until after.
+						getLayout(); // TODO: put above previous line?
+						clearInterval(pollForContentAvailable);
+					}
+				}
+				else if (version == 'v2') {
+					if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
+						console.log('Initial content available.');
+						console.log('Setting up initial content.');
+						setPlayerTabContent();
+						startContentPlaybackInterval();
+						clearInterval(pollForContentAvailable);
+					}
+				}
+			}, 100);
+		}
+	}, 100);
 });
 
 
