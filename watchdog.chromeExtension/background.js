@@ -3,6 +3,8 @@
 
 var version = 'v1',
 	thisExtensionId = chrome.i18n.getMessage('@@extension_id'),
+	Player,
+	playerConnection,
 	
 	layouts = new Queue(), // for v2
 	currentLayoutHtml = '', // for v1
@@ -28,13 +30,14 @@ function reloadExtension(targetExtensionId) {
 	});
 }
 
-function reloadPlayer() {
+function setPlayerId() {
 	chrome.management.getAll(function(extensions) {
 		for ( var i = 0; i < extensions.length; ++i ) {
-			log('' + extensions[i].name + ': '+ extensions[i].id);
-			
 			if (extensions[i].name == 'Player') {
-				reloadExtension(extensions[i].id);
+				console.log('Detected id for Player extension: '+extensions[i].id);
+				Player = extensions[i].id;
+	
+				console.log('Player: ' + Player);
 			}
 		}
 	});
@@ -254,9 +257,20 @@ function detectPlayerTab(tabId, changeInfo, tab) { // start when the player wind
 	console.log(tab.title+' '+changeInfo.status);
 	if (tab.title == 'Player' && changeInfo.status == 'complete') {
 		chrome.tabs.onUpdated.removeListener(detectPlayerTab);
-		// Open a connection to Player and Player will stop it's initial update interval.
 		
-		//determine version.
+		setPlayerId();
+		// poll for Player's id, then connect to Player
+		var playerIdInterval;
+		playerIdInterval = setInterval(function() {
+			if (Player) {
+				clearInterval(playerIdInterval);
+				console.log('Connecting to Player ('+Player+')...');
+				playerConnection = chrome.extension.connect(Player);
+			}
+		}, 100);
+		
+		if (false) {
+		// determine version.
 		var _versionDiv = $('<div></div>');
 		// _versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
 			// version = 'v'+_versionDiv.text();
@@ -305,10 +319,18 @@ function detectPlayerTab(tabId, changeInfo, tab) { // start when the player wind
 				}
 			}, 100);
 			
-			
 		// });
+		}
 	}
 }
+
+var playerConnectionPoll;
+playerConnectionPoll = setInterval(function() {
+	if (playerConnection) {
+		console.log('Connected to Player.');
+		clearInterval(playerConnectionPoll);
+	}
+}, 100);
 
 // $(document).ready(detectPlayerTab); // instead of document.onready...
 chrome.tabs.onUpdated.addListener(detectPlayerTab);

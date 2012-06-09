@@ -2,6 +2,7 @@
 
 
 var thisExtensionId = chrome.i18n.getMessage('@@extension_id'),
+	watchdogConnection = false,
 	
 	playerWindowReady = false,
 	playerTab,
@@ -41,27 +42,33 @@ function reportKeyAction(e) {
 };
 
 
+chrome.extension.onConnectExternal.addListener(function(port) {
+	watchdogConnection = port;
+	console.log('Connected to Watchdog.');
+});
 
 $(document).ready(function() {
 
 	// create the player tab and update it repeatedly so that Watchdog can
 	// detect that Player is ready.
-	var readyInterval,
-		watchdogReady = false;
+	var readyInterval;
 	createPlayerWindow(function() {
 		readyInterval = setInterval(function() {
-			if (true/*if Watchdog not loaded yet.*/) {
-				playerWindow.document.location.reload();
+			if (!watchdogConnection) { /*if Watchdog is not connected yet.*/
+				playerWindow.document.location.reload(); // Keep signaling until Watchdog detects the player tab.
 			}
-			else {
-				watchdogReady = true;
-				clearInterval(readyInterval);
+			else if (watchdogConnection) { // if the connection exists.
+				clearInterval(readyInterval); // stop polling.
 			}
-		}, 1000);
+		}, 3000);
 	});
 	// After the interval is cleared, the player tab is already ready and Watchdog has detected it and will now control it.
 		
 });
+
+window.onunload = function() {
+	chrome.tabs.remove(playerTab.id);
+};
 
 
 
