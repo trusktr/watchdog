@@ -30,7 +30,7 @@ function reloadExtension(targetExtensionId) {
 
 function reloadPlayer() {
 	chrome.management.getAll(function(extensions) {
-		for (var i=0; i<extensions.length; ++i) {
+		for ( var i = 0; i < extensions.length; ++i ) {
 			log('' + extensions[i].name + ': '+ extensions[i].id);
 			
 			if (extensions[i].name == 'Player') {
@@ -59,11 +59,6 @@ function createPlayerWindow(callback) {
 	// call Player's createPlayerWindow(callback)
 	// get playerTab set somehow.
 }
-
-function playerWindowInitActions() {
-	// nothing here yet.
-}
-
 
 
 var /*tempCounter = 0,*/
@@ -98,6 +93,7 @@ function getLayout(callback) {
 		// tempCounter = 0;
 	// }
 	
+	/*Sample data:*/
 	// var layoutData = {
 		// "id": 10,
 		// "ttl": Math.floor( (Math.random()*/*B*/1) + /*A*/15 ), //random number from A to B
@@ -123,22 +119,19 @@ function getLayout(callback) {
 	// return layoutData;
 }
 	
-var playerWindowCheckInterval,
-	playerWindowSlideInterval,
-	layoutIsSet = false;
-	
+var layoutIsSet = false;
+
 function setPlayerLayoutIfNecessary() {
 	if (playerWindowReady) {
 		if (!layoutIsSet) {
 			if (version == 'v1') {
 				if (currentLayoutHtml && !isGettingLayout) {
-					playerWindow.setLayout(version, currentLayoutHtml);
+					// call Player's setPlayerLayout(version, currentLayoutHtml);
 				}
 			}
 			else if (version == 'v2') {
 				if ( !layouts.isEmpty() ) {
-					// playerWindow.$('#layoutContainer').append( $('<div>'+layouts.peek().partitions[0].media+'</div>') );
-					playerWindow.setLayout(version, layouts.peek());
+					// call Player's setPlayerLayout(version, layouts.peek());
 					layoutIsSet = true;
 				}
 			}
@@ -148,6 +141,8 @@ function setPlayerLayoutIfNecessary() {
 		layoutIsSet = false;
 	}
 }
+
+var playerWindowSlideInterval;
 
 function Timer(duration, action) {
 	var timerId, paused, start, remaining = duration;
@@ -173,10 +168,12 @@ function Timer(duration, action) {
 	this.resume();
 };
 
+var playerWindowCheckInterval;
+
 function startPlayerWindowSlideInterval() {
 	console.log(currentDuration);
 	
-	setPlayerLayoutIfNecessary();
+	setPlayerLayoutIfNecessary(); // TODO: move this out of here...
 	
 	// function dynamicSetInterval(duration, action) {
 		// playerWindowSlideInterval = setTimeout(function() {
@@ -233,14 +230,16 @@ function doKeyAction(e) { // requires Timer class
 	if (code === 32) { // space
 		if (playerWindowSlideInterval.isPaused()) {
 			playerWindowSlideInterval.resume();
-			var vids = playerWindow.document.getElementsByTagName('video');
-			for (var i = 0; i < vids.length; i++) {
+			// call Player's helper function to get elements.
+			// var vids = playerWindow.document.getElementsByTagName('video');
+			for (var i=0; i<vids.length; i++) {
 				vids[i].play();
 			}
 		} else {
 			playerWindowSlideInterval.pause();
-			var vids = playerWindow.document.getElementsByTagName('video');
-			for (var i = 0; i < vids.length; i++) {
+			// call Player's helper function to get elements.
+			// var vids = playerWindow.document.getElementsByTagName('video');
+			for (var i=0; i<vids.length; i++) {
 				vids[i].pause();
 			}
 		}
@@ -260,11 +259,12 @@ $(document).ready(function() {
 		version = 'v1';
 		console.log(version);
 	
-		// Get some initial layoutss. Five is a good number.
 		if (version == 'v1') {
+			// Get the first layout.
 			getLayout();
 		}
 		else if (version == 'v2') {
+			// Get some initial layouts. Five is a good number.
 			getLayout();
 			getLayout();
 			getLayout();
@@ -273,28 +273,28 @@ $(document).ready(function() {
 		}
 
 		/* RECOVERY MECHANISM */
-		createPlayerWindow(playerWindowInitActions);
+		// call Player's createPlayerWindow(playerWindowInitActions);
 		chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
-			if (tabId == playerTab.id) { // if the player tab was closed...
-				//open a new one TODO: send a crash notification.
-				createPlayerWindow(playerWindowInitActions);
-			}
+			// if (tabId == playerTab.id) { // if the player tab was closed...
+				// open a new player TODO: send a crash notification.
+				// Call Player's createPlayerWindow(playerWindowInitActions);
+			// }
 		});
 		
 		var initialInterval;
 		initialInterval = setInterval(function() {
-			console.log('initial interval');
+			console.log('Poll for initial content.');
 			if (version == 'v1') {
-				if (_layoutLoader) {
+				if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
 					currentLayoutHtml = _layoutLoader.html();
 					currentDuration = _layoutLoader.find('#delay').text();
 					startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
-					getLayout();
+					getLayout(); // TODO: put above prefious line?
 					clearInterval(initialInterval);
 				}
 			}
 			else if (version == 'v2') {
-				if (layouts.getLength()) {
+				if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
 					startPlayerWindowSlideInterval();
 					clearInterval(initialInterval);
 				}

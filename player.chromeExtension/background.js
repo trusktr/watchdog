@@ -24,6 +24,7 @@ function reportPlayerWindowUnloadNotification() {
 function createPlayerWindow(callback) {
 	chrome.tabs.create({url:"player.html"}, function(tab) {
 		playerTab = tab;
+		// TODO: is the new tab's document.onready fired by now??? If not, the following callback might be better suited in reportPlayerWindowReadyNotification()
 		if (typeof callback == 'function') callback();
 	});
 }
@@ -31,28 +32,36 @@ function createPlayerWindow(callback) {
 	
 var layoutIsSet = false;
 	
-function setPlayerLayoutIfNecessary(version, currentLayoutHtml) {
+function setPlayerLayout(version, currentLayoutHtml) {
 	playerWindow.setLayout(version, currentLayoutHtml);
 }
 
 function reportKeyAction(e) {
-	// call doKeyAction(e) of Watchdog .
+	// call  Watchdog's doKeyAction(e).
 };
 
 
 
 $(document).ready(function() {
 
-		/* RECOVERY MECHANISM */
-		createPlayerWindow(playerWindowInitActions);
+	// create the player tab and update it repeatedly so that Watchdog can
+	// detect that Player is ready.
+	var readyInterval,
+		watchdogReady = false;
+	createPlayerWindow(function() {
+		readyInterval = setInterval(function() {
+			if (true/*if Watchdog not loaded yet.*/) {
+				playerWindow.document.location.reload();
+			}
+			else {
+				watchdogReady = true;
+				clearInterval(readyInterval);
+			}
+		}, 1000);
+	});
+	// After the interval is cleared, the player tab is already ready and Watchdog has detected it and will now control it.
 		
 });
-
-
-
-
-
-
 
 
 
