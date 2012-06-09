@@ -14,7 +14,6 @@ var version = 'v1',
 	
 	playerWindowReady = false,
 	playerTab,
-	playerWindow,
 
 	isPlayerWindow = function() { return false; };
 	
@@ -22,10 +21,12 @@ function log(msg) { console.log(msg); }
 
 function reloadExtension(targetExtensionId) {
 	chrome.management.get(targetExtensionId, function(extension) {
-		log('Reloading extension "' + extension.name + '"...');
+		console.log('Reloading extension "' + extension.name + '"...');
 		
 		chrome.management.setEnabled(extension.id, false, function() {
-			chrome.management.setEnabled(extension.id, true);
+			chrome.management.setEnabled(extension.id, true, function() {
+				console.log('"'+extension.name+'" extension reloaded.');
+			});
 		});
 	});
 }
@@ -36,25 +37,9 @@ function setPlayerId() {
 			if (extensions[i].name == 'Player') {
 				console.log('Detected id for Player extension: '+extensions[i].id);
 				Player = extensions[i].id;
-	
-				console.log('Player: ' + Player);
 			}
 		}
 	});
-}
-
-function playerWindowReadyNotification(theWindow) {
-	console.log('Player window ready.');
-	
-	playerWindow = theWindow;
-	playerWindowReady = true;
-	console.log(playerWindow); // useful to see what the player's window object contains.
-	
-	setPlayerTabContentIfNecessary();
-}
-
-function playerWindowUnloadNotification() {
-	playerWindowReady = false;
 }
 	
 function createPlayerWindow(callback) {
@@ -63,8 +48,7 @@ function createPlayerWindow(callback) {
 }
 
 
-var /*tempCounter = 0,*/
-	_layoutLoader;
+var _layoutLoader;
 
 function getLayout(callback) {
 	var layoutData = {},
@@ -89,75 +73,6 @@ function getLayout(callback) {
 			jsonComplete = true;
 			if (typeof callback == 'function') callback();
 		});
-	}
-	
-	// if (tempCounter >= 11) {
-		// tempCounter = 0;
-	// }
-	
-	/*Sample data:*/
-	// var layoutData = {
-		// "id": 10,
-		// "ttl": Math.floor( (Math.random()*/*B*/1) + /*A*/15 ), //random number from A to B
-		// "title": "Airport Storage",
-		// "partitions": [{
-			// "x": 0,
-			// "y": 0,
-			// "h": 100,
-			// "w": 50,
-			// "media": "test"+(++tempCounter)+".png",
-			// "media_md5": "bfaif97f8ab745b0587de1dcf1dbf6bc"
-		// }, {
-			// "x": 50,
-			// "y": 0,
-			// "h": 100,
-			// "w": 50,
-			// "media": "test"+(++tempCounter)+".png",
-			// "media_md5": "bfa2067wd7b7edy7587de1dcf1dbf6bc"
-		// }],
-		// "overlays": []
-	// };
-	
-	// return layoutData;
-}
-	
-var layoutIsSet = false;
-
-function setPlayerTabContentIfNecessary() {
-	console.log(playerWindowReady);
-	if (playerWindowReady) {
-		console.log(layoutIsSet);
-		if (!layoutIsSet) {
-			console.log(version);
-			if (version == 'v1') {
-				console.log(currentLayoutHtml);
-				console.log(isGettingLayout);
-				if (currentLayoutHtml && !isGettingLayout) {
-					// call Player's setPlayerLayout(version, currentLayoutHtml);
-					console.log('hellllooooooooo');
-					playerConnection.postMessage({
-						setPlayerTabContent: true,
-						version: version,
-						layoutData: currentLayoutHtml
-					});
-					layoutIsSet = false;
-				}
-			}
-			else if (version == 'v2') {
-				if ( !layouts.isEmpty() ) {
-					// call Player's setPlayerLayout(version, layouts.peek());
-					playerConnection.postMessage({
-						setPlayerTabContent: true,
-						version: version,
-						layoutData: layouts.peek()
-					});
-					layoutIsSet = true;
-				}
-			}
-		}
-	}
-	else if (!playerWindowReady) {
-		layoutIsSet = false;
 	}
 }
 
@@ -205,17 +120,8 @@ function Timer(duration, action) {
 	this.resume();
 };
 
-var pollForSettingPlayerTabContentIfNecessary;
-
-function startPlayerWindowSlideInterval() {
+function startContentPlaybackInterval() {
 	console.log('The current content will show for '+currentDuration+' milliseconds.');
-	
-	// function dynamicSetInterval(duration, action) {
-		// playerWindowSlideInterval = setTimeout(function() {
-			// action();
-			// dynamicSetInterval(currentDuration, action);
-		// }, duration);
-	// }
 	
 	playerWindowSlideInterval = new Timer(currentDuration, function() {
 		if (version == 'v1') {
@@ -228,13 +134,7 @@ function startPlayerWindowSlideInterval() {
 			layouts.dequeue(); // remove the layout we've already used from the queue.
 		}
 		
-		layoutIsSet = false; // we need to set a new layout, so false. setPlayerTabContentIfNecessary() uses layoutIsSet.
 		setPlayerTabContent();
-		
-		clearInterval(pollForSettingPlayerTabContentIfNecessary);
-		pollForSettingPlayerTabContentIfNecessary = setInterval(function() { // this interval is to check that the player isn't crashed or closed.
-			setPlayerTabContentIfNecessary(); // TODO: make sure to add testing for sad tabs in setPlayerTabContentIfNecessary.
-		}, 50);
 	});
 }
 
@@ -312,13 +212,15 @@ pollForPlayerConnection = setInterval(function() {
 		console.log('Connected to Player.');
 		clearInterval(pollForPlayerConnection);
 		playerConnection.onMessage.addListener(function(msg) {
-			if (msg.playerTab) {
+			if (msg.playerTabReady) {
 				playerTab = msg.playerTab;
 			}
-			if (msg.playerTabUnloaded) {
+			if (msg.playerTabUnload) {
 				playerWindowReady = false;
-				layoutIsSet = false;
 			}
+		});
+		playerConnection.onDisconnect.addListener(function() {
+			console.log('Connection to Player disconnected.');
 		});
 		
 		/*And then we poll to see if we have content.*/
@@ -331,7 +233,7 @@ pollForPlayerConnection = setInterval(function() {
 					currentDuration = _layoutLoader.find('#delay').text();
 					console.log('Starting content playback.');
 					setPlayerTabContent();
-					startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
+					startContentPlaybackInterval(); // uses currentDuration, so don't call getLayout() until after.
 					getLayout(); // TODO: put above previous line?
 					clearInterval(pollForContentAvailable);
 				}
@@ -339,26 +241,13 @@ pollForPlayerConnection = setInterval(function() {
 			else if (version == 'v2') {
 				if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
 					setPlayerTabContent();
-					startPlayerWindowSlideInterval();
+					startContentPlaybackInterval();
 					clearInterval(pollForContentAvailable);
 				}
 			}
 		}, 100);
 	}
 }, 100);
-
-/* RECOVERY MECHANISM */
-// call Player's createPlayerWindow(playerWindowInitActions);
-chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
-	if (tabId == playerTab.id) { // if the player tab was closed...
-		// open a new player TODO: send a crash report to unitclient.
-		// Call Player's createPlayerWindow(playerWindowInitActions);
-		console.log('The player window has been closed and will be restarted.');
-		playerConnection.postMessage({
-			playerTabClosed: true
-		});
-	}
-});
 
 chrome.tabs.onUpdated.addListener(detectPlayerTab);
 

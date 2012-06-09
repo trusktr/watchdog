@@ -2,11 +2,6 @@
 var backgroundPage = chrome.extension.getBackgroundPage(); // The JavaScript 'window' object of the background page.
 var isPlayerWindow = function() { return true; };
 
-window.onunload = function() {
-	backgroundPage.reportPlayerWindowUnloadNotification();
-	return true;
-};
-
 function setContent(version, layoutData) {
 	if (version == 'v1') {
 		$('#layoutContainer').html(layoutData);
@@ -50,12 +45,40 @@ function setContent(version, layoutData) {
 					 + "        </div>";
 		}
 		$('#layoutContainer').html(pagedata);
+	
+		/*Sample data:*/
+		// var layoutData = {
+			// "id": 10,
+			// "ttl": Math.floor( (Math.random()*/*B*/1) + /*A*/15 ), //random number from A to B
+			// "title": "Airport Storage",
+			// "partitions": [{
+				// "x": 0,
+				// "y": 0,
+				// "h": 100,
+				// "w": 50,
+				// "media": "test"+(++tempCounter)+".png",
+				// "media_md5": "bfaif97f8ab745b0587de1dcf1dbf6bc"
+			// }, {
+				// "x": 50,
+				// "y": 0,
+				// "h": 100,
+				// "w": 50,
+				// "media": "test"+(++tempCounter)+".png",
+				// "media_md5": "bfa2067wd7b7edy7587de1dcf1dbf6bc"
+			// }],
+			// "overlays": []
+		// };
 	}
 }
 
+window.onunload = function() {
+	backgroundPage.reportPlayerTabUnload();
+	return true;
+};
+
 $(document).ready(function() {
 	// ready, so notify the background page.
-	backgroundPage.reportPlayerWindowReadyNotification(window);
+	backgroundPage.reportPlayerTabReady(window);
 	
 	//disable right click menu
 	$('body').on('contextmenu', function() {
