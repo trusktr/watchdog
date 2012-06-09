@@ -50,12 +50,11 @@ function playerWindowReadyNotification(theWindow) {
 	playerWindowReady = true;
 	console.log(playerWindow); // useful to see what the player's window object contains.
 	
-	setPlayerLayoutIfNecessary();
+	setPlayerTabContentIfNecessary();
 }
 
 function playerWindowUnloadNotification() {
 	playerWindowReady = false;
-	console.log('The player window has been closed and will be restarted.');
 }
 	
 function createPlayerWindow(callback) {
@@ -124,17 +123,34 @@ function getLayout(callback) {
 	
 var layoutIsSet = false;
 
-function setPlayerLayoutIfNecessary() {
+function setPlayerTabContentIfNecessary() {
+	console.log(playerWindowReady);
 	if (playerWindowReady) {
+		console.log(layoutIsSet);
 		if (!layoutIsSet) {
+			console.log(version);
 			if (version == 'v1') {
+				console.log(currentLayoutHtml);
+				console.log(isGettingLayout);
 				if (currentLayoutHtml && !isGettingLayout) {
 					// call Player's setPlayerLayout(version, currentLayoutHtml);
+					console.log('hellllooooooooo');
+					playerConnection.postMessage({
+						setPlayerTabContent: true,
+						version: version,
+						layoutData: currentLayoutHtml
+					});
+					layoutIsSet = false;
 				}
 			}
 			else if (version == 'v2') {
 				if ( !layouts.isEmpty() ) {
 					// call Player's setPlayerLayout(version, layouts.peek());
+					playerConnection.postMessage({
+						setPlayerTabContent: true,
+						version: version,
+						layoutData: layouts.peek()
+					});
 					layoutIsSet = true;
 				}
 			}
@@ -142,6 +158,24 @@ function setPlayerLayoutIfNecessary() {
 	}
 	else if (!playerWindowReady) {
 		layoutIsSet = false;
+	}
+}
+
+function setPlayerTabContent() {
+	console.log('Setting the player window content.');
+	if (version == 'v1') {
+		playerConnection.postMessage({
+			setPlayerTabContent: true,
+			version: version,
+			layoutData: currentLayoutHtml
+		});
+	}
+	else if (version == 'v2') {
+		playerConnection.postMessage({
+			setPlayerTabContent: true,
+			version: version,
+			layoutData: layouts.peek()
+		});
 	}
 }
 
@@ -171,12 +205,10 @@ function Timer(duration, action) {
 	this.resume();
 };
 
-var playerWindowCheckInterval;
+var pollForSettingPlayerTabContentIfNecessary;
 
 function startPlayerWindowSlideInterval() {
-	console.log(currentDuration);
-	
-	setPlayerLayoutIfNecessary(); // TODO: move this out of here...
+	console.log('The current content will show for '+currentDuration+' milliseconds.');
 	
 	// function dynamicSetInterval(duration, action) {
 		// playerWindowSlideInterval = setTimeout(function() {
@@ -187,7 +219,7 @@ function startPlayerWindowSlideInterval() {
 	
 	playerWindowSlideInterval = new Timer(currentDuration, function() {
 		if (version == 'v1') {
-			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after this the current slide's current duration (see the if statement directly below this call to dynamicSetInterval()).
+			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
 			currentDuration = parseInt( _layoutLoader.find('#delay').text() );
 			isGettingLayout = true;
 			getLayout();
@@ -196,12 +228,12 @@ function startPlayerWindowSlideInterval() {
 			layouts.dequeue(); // remove the layout we've already used from the queue.
 		}
 		
-		layoutIsSet = false; // we need to set a new layout, so false. setPlayerLayoutIfNecessary() uses layoutIsSet.
-		setPlayerLayoutIfNecessary();
+		layoutIsSet = false; // we need to set a new layout, so false. setPlayerTabContentIfNecessary() uses layoutIsSet.
+		setPlayerTabContent();
 		
-		clearInterval(playerWindowCheckInterval);
-		playerWindowCheckInterval = setInterval(function() { // this interval is to check that the player isn't crashed or closed.
-			setPlayerLayoutIfNecessary(); // TODO: make sure to add testing for sad tabs in setPlayerLayoutIfNecessary.
+		clearInterval(pollForSettingPlayerTabContentIfNecessary);
+		pollForSettingPlayerTabContentIfNecessary = setInterval(function() { // this interval is to check that the player isn't crashed or closed.
+			setPlayerTabContentIfNecessary(); // TODO: make sure to add testing for sad tabs in setPlayerTabContentIfNecessary.
 		}, 50);
 	});
 }
@@ -222,7 +254,6 @@ function next() {
 	playerWindowSlideInterval.resume();
 }
 function stats() {
-	
 }
 
 function doKeyAction(e) { // requires Timer class
@@ -233,14 +264,14 @@ function doKeyAction(e) { // requires Timer class
 	if (code === 32) { // space
 		if (playerWindowSlideInterval.isPaused()) {
 			playerWindowSlideInterval.resume();
-			// call Player's helper function to get elements.
+			//TODO call Player's helper function to get elements.
 			// var vids = playerWindow.document.getElementsByTagName('video');
 			for (var i=0; i<vids.length; i++) {
 				vids[i].play();
 			}
 		} else {
 			playerWindowSlideInterval.pause();
-			// call Player's helper function to get elements.
+			//TODO call Player's helper function to get elements.
 			// var vids = playerWindow.document.getElementsByTagName('video');
 			for (var i=0; i<vids.length; i++) {
 				vids[i].pause();
@@ -255,87 +286,106 @@ function doKeyAction(e) { // requires Timer class
 
 function detectPlayerTab(tabId, changeInfo, tab) { // start when the player window is detected.
 	console.log(tab.title+' '+changeInfo.status);
+	playerTab = tab;
+	playerWindowReady = true;
+	
 	if (tab.title == 'Player' && changeInfo.status == 'complete') {
 		chrome.tabs.onUpdated.removeListener(detectPlayerTab);
 		
 		setPlayerId();
-		// poll for Player's id, then connect to Player
-		var playerIdInterval;
-		playerIdInterval = setInterval(function() {
+		// poll for Player's id, then connect to Player.
+		var pollForPlayerId;
+		pollForPlayerId = setInterval(function() {
 			if (Player) {
-				clearInterval(playerIdInterval);
+				clearInterval(pollForPlayerId);
 				console.log('Connecting to Player ('+Player+')...');
 				playerConnection = chrome.extension.connect(Player);
 			}
 		}, 100);
-		
-		if (false) {
-		// determine version.
-		var _versionDiv = $('<div></div>');
-		// _versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
-			// version = 'v'+_versionDiv.text();
-			version = 'v1';
-			console.log(version);
-		
-			if (version == 'v1') {
-				// Get the first layout.
-				getLayout();
-			}
-			else if (version == 'v2') {
-				// Get some initial layouts. Five is a good number.
-				getLayout();
-				getLayout();
-				getLayout();
-				getLayout();
-				getLayout();
-			}
-
-			/* RECOVERY MECHANISM */
-			// call Player's createPlayerWindow(playerWindowInitActions);
-			chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
-				// if (tabId == playerTab.id) { // if the player tab was closed...
-					// open a new player TODO: send a crash notification.
-					// Call Player's createPlayerWindow(playerWindowInitActions);
-				// }
-			});
-			
-			var initialInterval;
-			initialInterval = setInterval(function() {
-				console.log('Poll for initial content.');
-				if (version == 'v1') {
-					if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
-						currentLayoutHtml = _layoutLoader.html();
-						currentDuration = _layoutLoader.find('#delay').text();
-						startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
-						getLayout(); // TODO: put above prefious line?
-						clearInterval(initialInterval);
-					}
-				}
-				else if (version == 'v2') {
-					if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
-						startPlayerWindowSlideInterval();
-						clearInterval(initialInterval);
-					}
-				}
-			}, 100);
-			
-		// });
-		}
 	}
 }
 
-var playerConnectionPoll;
-playerConnectionPoll = setInterval(function() {
+/*First we poll for the connectiong to Player*/
+var pollForPlayerConnection;
+pollForPlayerConnection = setInterval(function() {
 	if (playerConnection) {
 		console.log('Connected to Player.');
-		clearInterval(playerConnectionPoll);
+		clearInterval(pollForPlayerConnection);
+		playerConnection.onMessage.addListener(function(msg) {
+			if (msg.playerTab) {
+				playerTab = msg.playerTab;
+			}
+			if (msg.playerTabUnloaded) {
+				playerWindowReady = false;
+				layoutIsSet = false;
+			}
+		});
 		
-		// start managing the player window.
+		/*And then we poll to see if we have content.*/
+		var pollForContentAvailable;
+		pollForContentAvailable = setInterval(function() {
+			console.log('Polling for initial content.');
+			if (version == 'v1') {
+				if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
+					currentLayoutHtml = _layoutLoader.html();
+					currentDuration = _layoutLoader.find('#delay').text();
+					console.log('Starting content playback.');
+					setPlayerTabContent();
+					startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
+					getLayout(); // TODO: put above previous line?
+					clearInterval(pollForContentAvailable);
+				}
+			}
+			else if (version == 'v2') {
+				if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
+					setPlayerTabContent();
+					startPlayerWindowSlideInterval();
+					clearInterval(pollForContentAvailable);
+				}
+			}
+		}, 100);
 	}
 }, 100);
 
-// $(document).ready(detectPlayerTab); // instead of document.onready...
+/* RECOVERY MECHANISM */
+// call Player's createPlayerWindow(playerWindowInitActions);
+chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
+	if (tabId == playerTab.id) { // if the player tab was closed...
+		// open a new player TODO: send a crash report to unitclient.
+		// Call Player's createPlayerWindow(playerWindowInitActions);
+		console.log('The player window has been closed and will be restarted.');
+		playerConnection.postMessage({
+			playerTabClosed: true
+		});
+	}
+});
+
 chrome.tabs.onUpdated.addListener(detectPlayerTab);
+
+$(document).ready(function() {
+		
+	// determine version.
+	var _versionDiv = $('<div></div>');
+	// _versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
+		// version = 'v'+_versionDiv.text();
+		version = 'v1';
+		console.log('Unitclient Version: '+version);
+	
+		if (version == 'v1') {
+			// Get the first layout.
+			getLayout();
+		}
+		else if (version == 'v2') {
+			// Get some initial layouts. Five is a good number.
+			getLayout();
+			getLayout();
+			getLayout();
+			getLayout();
+			getLayout();
+		}
+		
+	// });
+});
 
 
 

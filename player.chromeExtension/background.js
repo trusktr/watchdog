@@ -20,21 +20,23 @@ function reportPlayerWindowReadyNotification(theWindow) {
 
 function reportPlayerWindowUnloadNotification() {
 	// call Watchdog's playerWindowUnloadNotification()
+	watchdogConnection.postMessage({playerTabUnloaded: true});
 }
 	
 function createPlayerWindow(callback) {
 	chrome.tabs.create({url:"player.html"}, function(tab) {
 		playerTab = tab;
 		// TODO: is the new tab's document.onready fired by now??? If not, the following callback might be better suited in reportPlayerWindowReadyNotification()
-		if (typeof callback == 'function') callback();
+		if (typeof callback == 'function') callback(tab);
 	});
 }
 
 	
 var layoutIsSet = false;
 	
-function setPlayerLayout(version, currentLayoutHtml) {
-	playerWindow.setLayout(version, currentLayoutHtml);
+function setPlayerTabContent(version, layoutData) {
+	console.log('Setting player window content.');
+	playerWindow.setContent(version, layoutData);
 }
 
 function reportKeyAction(e) {
@@ -45,6 +47,17 @@ function reportKeyAction(e) {
 chrome.extension.onConnectExternal.addListener(function(port) {
 	watchdogConnection = port;
 	console.log('Connected to Watchdog.');
+	
+	watchdogConnection.onMessage.addListener(function(msg) {
+		if (msg.playerTabClosed) {
+			createPlayerWindow(function(tab) {
+				watchdogConnection.postMessage({playerTab: playerTab});
+			});
+		}
+		if (msg.setPlayerTabContent) {
+			setPlayerTabContent(msg.version, msg.layoutData);
+		}
+	});
 });
 
 $(document).ready(function() {

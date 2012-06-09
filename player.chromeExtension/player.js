@@ -7,7 +7,7 @@ window.onunload = function() {
 	return true;
 };
 
-function setLayout(version, layoutData) {
+function setContent(version, layoutData) {
 	if (version == 'v1') {
 		$('#layoutContainer').html(layoutData);
 	}
