@@ -247,63 +247,71 @@ function doKeyAction(e) { // requires Timer class
 	else if (code === 66) { back(); } // b
 	else if (code === 77) { stats(); } // m
 	else if (code === 78) { next(); } // n
-};
+}
 
 
-
-$(document).ready(function() {
-	//determine version.
-	var _versionDiv = $('<div></div>');
-	// _versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
-		// version = 'v'+_versionDiv.text();
-		version = 'v1';
-		console.log(version);
-	
-		if (version == 'v1') {
-			// Get the first layout.
-			getLayout();
-		}
-		else if (version == 'v2') {
-			// Get some initial layouts. Five is a good number.
-			getLayout();
-			getLayout();
-			getLayout();
-			getLayout();
-			getLayout();
-		}
-
-		/* RECOVERY MECHANISM */
-		// call Player's createPlayerWindow(playerWindowInitActions);
-		chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
-			// if (tabId == playerTab.id) { // if the player tab was closed...
-				// open a new player TODO: send a crash notification.
-				// Call Player's createPlayerWindow(playerWindowInitActions);
-			// }
-		});
+function detectPlayerTab(tabId, changeInfo, tab) { // start when the player window is detected.
+	console.log(tab.title+' '+changeInfo.status);
+	if (tab.title == 'Player' && changeInfo.status == 'complete') {
+		chrome.tabs.onUpdated.removeListener(detectPlayerTab);
+		// Open a connection to Player and Player will stop it's initial update interval.
 		
-		var initialInterval;
-		initialInterval = setInterval(function() {
-			console.log('Poll for initial content.');
+		//determine version.
+		var _versionDiv = $('<div></div>');
+		// _versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
+			// version = 'v'+_versionDiv.text();
+			version = 'v1';
+			console.log(version);
+		
 			if (version == 'v1') {
-				if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
-					currentLayoutHtml = _layoutLoader.html();
-					currentDuration = _layoutLoader.find('#delay').text();
-					startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
-					getLayout(); // TODO: put above prefious line?
-					clearInterval(initialInterval);
-				}
+				// Get the first layout.
+				getLayout();
 			}
 			else if (version == 'v2') {
-				if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
-					startPlayerWindowSlideInterval();
-					clearInterval(initialInterval);
-				}
+				// Get some initial layouts. Five is a good number.
+				getLayout();
+				getLayout();
+				getLayout();
+				getLayout();
+				getLayout();
 			}
-		}, 100);
-		
-		
-	// });
-});
+
+			/* RECOVERY MECHANISM */
+			// call Player's createPlayerWindow(playerWindowInitActions);
+			chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
+				// if (tabId == playerTab.id) { // if the player tab was closed...
+					// open a new player TODO: send a crash notification.
+					// Call Player's createPlayerWindow(playerWindowInitActions);
+				// }
+			});
+			
+			var initialInterval;
+			initialInterval = setInterval(function() {
+				console.log('Poll for initial content.');
+				if (version == 'v1') {
+					if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
+						currentLayoutHtml = _layoutLoader.html();
+						currentDuration = _layoutLoader.find('#delay').text();
+						startPlayerWindowSlideInterval(); // uses currentDuration, so don't call getLayout() until after.
+						getLayout(); // TODO: put above prefious line?
+						clearInterval(initialInterval);
+					}
+				}
+				else if (version == 'v2') {
+					if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
+						startPlayerWindowSlideInterval();
+						clearInterval(initialInterval);
+					}
+				}
+			}, 100);
+			
+			
+		// });
+	}
+}
+
+// $(document).ready(detectPlayerTab); // instead of document.onready...
+chrome.tabs.onUpdated.addListener(detectPlayerTab);
 
 
 
