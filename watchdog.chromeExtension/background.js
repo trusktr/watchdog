@@ -329,6 +329,8 @@ playerConnectionPoll = setInterval(function() {
 	if (playerConnection) {
 		console.log('Connected to Player.');
 		clearInterval(playerConnectionPoll);
+		
+		// start managing the player window.
 	}
 }, 100);
 
