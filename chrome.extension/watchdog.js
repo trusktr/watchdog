@@ -20,7 +20,7 @@ function playerWindowReadyNotification(theWindow) {
 	
 	playerWindow = theWindow;
 	playerWindowReady = true;
-	console.log(playerWindow); // useful to see what the window object contains.
+	console.log(playerWindow); // useful to see what the player's window object contains.
 	
 	setPlayerLayoutIfNecessary();
 }
@@ -37,8 +37,8 @@ function createPlayerWindow(callback) {
 	});
 }
 
-function playerWindowActions() {
-	console.log('playerWindowActions() executed');
+function playerWindowInitActions() {
+	console.log('playerWindowInitActions() executed');
 }
 
 
@@ -232,8 +232,9 @@ function doKeyAction(e) { // requires Timer class
 $(document).ready(function() {
 	//determine version.
 	var _versionDiv = $('<div></div>');
-	_versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
-		version = 'v'+_versionDiv.text();
+	// _versionDiv.load('http://127.0.0.1:3437/?action=version', function() {
+		// version = 'v'+_versionDiv.text();
+		version = 'v1';
 		console.log(version);
 	
 		// Get some initial layoutss. Five is a good number.
@@ -248,11 +249,12 @@ $(document).ready(function() {
 			getLayout();
 		}
 
-		createPlayerWindow(playerWindowActions);
+		/* RECOVERY MECHANISM */
+		createPlayerWindow(playerWindowInitActions);
 		chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
 			if (tabId == playerTab.id) { // if the player tab was closed...
-				//open a new one and send a crash report.
-				createPlayerWindow(playerWindowActions);
+				//open a new one TODO: send a crash notification.
+				createPlayerWindow(playerWindowInitActions);
 			}
 		});
 		
@@ -277,7 +279,7 @@ $(document).ready(function() {
 		}, 100);
 		
 		
-	});
+	// });
 });
 
 
