@@ -15,17 +15,21 @@ var version = 'v1',
 	playerWindowReady = false,
 	playerTab,
 
-	isPlayerWindow = function() { return false; };
+	isPlayerWindow = function() { return false; },
+	
+	/*Really internal*/
+	intervals = new Array();
 	
 function log(msg) { console.log(msg); }
 
-function reloadExtension(targetExtensionId) {
+function reloadExtension(targetExtensionId, callback) {
 	chrome.management.get(targetExtensionId, function(extension) {
 		console.log('Reloading extension "' + extension.name + '"...');
 		
 		chrome.management.setEnabled(extension.id, false, function() {
 			chrome.management.setEnabled(extension.id, true, function() {
 				console.log('"'+extension.name+'" extension reloaded.');
+				if (typeof callback == 'function') callback();
 			});
 		});
 	});
@@ -100,36 +104,44 @@ function setPlayerTabContent() {
 	}
 }
 
-var playerWindowSlideInterval;
+var playerPlaybackInterval;
 
-function Timer(duration, action) {
+function Timer(duration, action/*TODO: ,autostart*/) {
 	var timerId, paused, start, remaining = duration;
 	this.pause = function() {
 		paused = true;
 		window.clearTimeout(timerId);
 		remaining -= new Date() - start;
 	};
+	this.stop = function() {
+		paused = true;
+		window.clearTimeout(timerId);
+		remaining = duration; // back to the beginning.
+	};
 	this.resume = function() {
 		paused = false;
 		start = new Date();
 		timerId = window.setTimeout(function() {
 			action();
-			playerWindowSlideInterval = new Timer(currentDuration, action);
+			playerPlaybackInterval = new Timer(currentDuration, action);
 		}, remaining);
 	};
+	this.start = function() {
+		this.resume();
+	}
 	this.isPaused = function() {
 		return paused;
 	};
 	this.setRemaining = function(newValue) {
 		remaining = newValue;
 	};
-	this.resume();
+	this.resume(); // if autostart.
 };
 
 function startContentPlaybackInterval() {
 	console.log('Starting playback of content.');
 	
-	playerWindowSlideInterval = new Timer(currentDuration, function() {
+	playerPlaybackInterval = new Timer(currentDuration, function() {
 		console.log('The last layout showed for '+(currentDuration/1000)+' seconds.');
 		if (version == 'v1') {
 			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
@@ -148,41 +160,36 @@ function startContentPlaybackInterval() {
 function back() {
 	console.log('Going to previous slide.');
 	getLayoutAction = 'back'; // FIXME: the next and back commands happen one slide late. 
-	playerWindowSlideInterval.pause();
-	playerWindowSlideInterval.setRemaining(0);
-	playerWindowSlideInterval.resume();
+	playerPlaybackInterval.pause();
+	playerPlaybackInterval.setRemaining(0);
+	playerPlaybackInterval.resume();
 }
 
 function next() {
 	console.log('Going to next slide.');
 	getLayoutAction = 'next';
-	playerWindowSlideInterval.pause();
-	playerWindowSlideInterval.setRemaining(0);
-	playerWindowSlideInterval.resume();
+	playerPlaybackInterval.pause();
+	playerPlaybackInterval.setRemaining(0);
+	playerPlaybackInterval.resume();
 }
 function stats() {
 }
 
 function doKeyAction(e) { // requires Timer class
-	console.log('keypress!');
 	var code;
 	if (!e) e = window.event;
 	if (e.keyCode) code = e.keyCode;
 	if (code === 32) { // space
-		if (playerWindowSlideInterval.isPaused()) {
-			playerWindowSlideInterval.resume();
-			//TODO call Player's helper function to get elements.
-			// var vids = playerWindow.document.getElementsByTagName('video');
-			for (var i=0; i<vids.length; i++) {
-				vids[i].play();
-			}
+		if (playerPlaybackInterval.isPaused()) {
+			playerPlaybackInterval.resume();
+			playerConnection.postMessage({
+				playbackResumed: true
+			});
 		} else {
-			playerWindowSlideInterval.pause();
-			//TODO call Player's helper function to get elements.
-			// var vids = playerWindow.document.getElementsByTagName('video');
-			for (var i=0; i<vids.length; i++) {
-				vids[i].pause();
-			}
+			playerPlaybackInterval.pause();
+			playerConnection.postMessage({
+				playbackPaused: true
+			});
 		}
 	}
 	else if (code === 66) { back(); } // b
@@ -211,6 +218,82 @@ function detectPlayerTab(tabId, changeInfo, tab) { // start when the player wind
 		}, 100);
 	}
 }
+			
+function setPollForContentAvailable() {
+	/*We poll to see if we have content.*/
+	console.log('Polling for initial content.');
+	var pollForContentAvailable;
+	pollForContentAvailable = setInterval(function() {
+		if (version == 'v1') {
+			if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
+				console.log('Initial content available.');
+				console.log('Setting up initial content.');
+				currentLayoutHtml = _layoutLoader.html();
+				currentDuration = _layoutLoader.find('#delay').text();
+				setPlayerTabContent();
+				startContentPlaybackInterval(); // uses currentDuration, so don't call getLayout() until after.
+				getLayout(); // TODO: put above previous line?
+				clearInterval(pollForContentAvailable);
+			}
+		}
+		else if (version == 'v2') {
+			if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
+				console.log('Initial content available.');
+				console.log('Setting up initial content.');
+				setPlayerTabContent();
+				startContentPlaybackInterval();
+				clearInterval(pollForContentAvailable);
+			}
+		}
+	}, 100);
+	intervals.push(pollForContentAvailable);
+}
+
+function setPollForPlayerConnection() {
+	/*We poll for the connection to Player*/
+	console.log('Polling for the connection to Player.');
+	var pollForPlayerConnection;
+	pollForPlayerConnection = setInterval(function() {
+		if (playerConnection) {
+			console.log('Connected to Player.');
+			clearInterval(pollForPlayerConnection);
+			console.log('Establishing listeners for messages from Player.');
+			playerConnection.onMessage.addListener(function(msg) {
+				if (msg.playerTabReady) {
+					console.log('The player tab is ready.');
+					playerTab = msg.playerTab;
+				}
+				if (msg.playerTabUnload) {
+					console.log('The player tab was closed.');
+					playerWindowReady = false;
+				}
+				if (msg.keyAction) {
+					console.log('A key was pressed.');
+					doKeyAction(msg.key);
+				}
+			});
+			playerConnection.onDisconnect.addListener(function() {
+				console.log('############### !!! Connection to Player lost. !!! ###############');
+				playerConnection = false;
+				console.log('Stopping intervals (if necessary) and playback.');
+				for (var i=0; i<intervals.length; ++i) {
+					clearInterval(intervals[i]);
+				}
+				intervals = new Array(); // get ready for when playback resumed.
+				playerPlaybackInterval.pause();
+				console.log('Attempting to reload Player and resume playback.');
+				// reloadExtension(Player, function() {}); // doesn't work with crashed extensions. :(
+				$('<div>').load('http://127.0.0.1:3437/?action=crash');
+				console.log('Crash event reported.');
+				chrome.windows.remove(playerTab.windowId, function() {});
+				// chrome.tabs.onUpdated.addListener(detectPlayerTab);
+				// setPollForPlayerConnection();
+			});
+			setPollForContentAvailable();
+		}
+	}, 100);
+	intervals.push(pollForPlayerConnection);
+}
 
 chrome.tabs.onUpdated.addListener(detectPlayerTab);
 
@@ -238,60 +321,16 @@ $(document).ready(function() {
 			getLayout();
 		}
 	// });
-
-	/*First we poll for the connection to Player*/
-	console.log('Polling for the connection to Player.');
-	var pollForPlayerConnection;
-	pollForPlayerConnection = setInterval(function() {
-		if (playerConnection) {
-			console.log('Connected to Player.');
-			clearInterval(pollForPlayerConnection);
-			console.log('Establishing listeners for messages from Player.');
-			playerConnection.onMessage.addListener(function(msg) {
-				if (msg.playerTabReady) {
-					console.log('The player tab is ready.');
-					playerTab = msg.playerTab;
-				}
-				if (msg.playerTabUnload) {
-					console.log('The player tab was closed.');
-					playerWindowReady = false;
-				}
-			});
-			playerConnection.onDisconnect.addListener(function() {
-				console.log('### Connection to Player lost. ###');
-				playerConnection = false;
-				console.log('Attempting to reload Player.');
-			});
-			
-			/*And then we poll to see if we have content.*/
-			console.log('Polling for initial content.');
-			var pollForContentAvailable;
-			pollForContentAvailable = setInterval(function() {
-				if (version == 'v1') {
-					if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
-						console.log('Initial content available.');
-						console.log('Setting up initial content.');
-						currentLayoutHtml = _layoutLoader.html();
-						currentDuration = _layoutLoader.find('#delay').text();
-						setPlayerTabContent();
-						startContentPlaybackInterval(); // uses currentDuration, so don't call getLayout() until after.
-						getLayout(); // TODO: put above previous line?
-						clearInterval(pollForContentAvailable);
-					}
-				}
-				else if (version == 'v2') {
-					if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
-						console.log('Initial content available.');
-						console.log('Setting up initial content.');
-						setPlayerTabContent();
-						startContentPlaybackInterval();
-						clearInterval(pollForContentAvailable);
-					}
-				}
-			}, 100);
-		}
-	}, 100);
+	
+	setPollForPlayerConnection();
 });
+
+// chrome.windows.onRemoved.addListener(function(windowId) {
+	// chrome.management.uninstall(Player);
+// });
+window.onunload = function() {
+	$('<div>').load('http://127.0.0.1:3437/?action=close');
+};
 
 
 

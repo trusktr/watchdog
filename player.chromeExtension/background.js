@@ -54,7 +54,13 @@ function setPlayerTabContent(version, layoutData) {
 }
 
 function reportKeyAction(e) {
-	// call  Watchdog's doKeyAction(e).
+	console.log('Reporting key action.');
+	if (watchdogConnection) {
+		watchdogConnection.postMessage({
+			keyAction: true,
+			key: {keyCode: e.keyCode}
+		});
+	}
 };
 
 
@@ -68,6 +74,18 @@ chrome.extension.onConnectExternal.addListener(function(port) {
 		}
 		if (msg.setPlayerTabContent) {
 			setPlayerTabContent(msg.version, msg.layoutData);
+		}
+		if (msg.playbackResumed) {
+			var vids = playerWindow.document.getElementsByTagName('video');
+			for (var i=0; i<vids.length; i++) {
+				vids[i].play();
+			}
+		}
+		if (msg.playbackPaused) {
+			var vids = playerWindow.document.getElementsByTagName('video');
+			for (var i=0; i<vids.length; i++) {
+				vids[i].pause();
+			}
 		}
 	});
 	watchdogConnection.onDisconnect.addListener(function() {
@@ -106,6 +124,7 @@ $(document).ready(function() {
 
 window.onunload = function() {
 	chrome.tabs.remove(playerTab.id); // Clean up when closing the plugin.
+	chrome.management.uninstall(thisExtensionId);
 };
 
 
