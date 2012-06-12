@@ -64,8 +64,8 @@ function reportKeyAction(e) {
 };
 
 function toggleStats(statsData) {
-	$('#stats').html(statsData);
-	$('#stats').toggle();
+	playerWindow.$('#stats').html(statsData);
+	playerWindow.$('#stats').toggle();
 }
 
 

@@ -186,16 +186,16 @@ function next() {
 	playerPlaybackInterval.resume();
 }
 function stats() {
-	// console.log('Toggling stats view.');
-	// var _buffer = $('<div>');
-	// _buffer.load('http://127.0.0.1:3437/?action=stats', function() {
-		// if (playerConnection) {
-			// playerConnection.postMessage({
-				// toggleStats: true,
-				// statsData: _buffer.html()
-			// });
-		// }
-	// });
+	console.log('Toggling stats view.');
+	var _buffer = $('<div>');
+	_buffer.load('http://127.0.0.1:3437/?action=stats', function() {
+		if (playerConnection) {
+			playerConnection.postMessage({
+				toggleStats: true,
+				statsData: _buffer.html()
+			});
+		}
+	});
 }
 
 function doKeyAction(e) { // requires Timer class
