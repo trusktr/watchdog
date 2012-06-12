@@ -65,7 +65,7 @@ function getLayout(callback) {
 		
 		_layoutLoader.load('http://127.0.0.1:3437/?action='+getLayoutAction+' div', function(){
 			isGettingLayout = false;
-			getLayoutAction = 'update'; // reset this if it was changed.
+			getLayoutAction = 'update'; // reset this in case it was changed.
 			console.log('Done getting layout content.');
 			if (typeof callback == 'function') callback();
 		});
@@ -105,6 +105,7 @@ function setPlayerTabContent() {
 }
 
 var playerPlaybackInterval;
+var contentPlaybackIntervalAlternator = 0;
 
 function Timer(duration, action/*TODO: ,autostart*/) {
 	var timerId, paused, start, remaining = duration;
@@ -122,8 +123,8 @@ function Timer(duration, action/*TODO: ,autostart*/) {
 		paused = false;
 		start = new Date();
 		timerId = window.setTimeout(function() {
-			action();
 			playerPlaybackInterval = new Timer(currentDuration, action);
+			action();
 		}, remaining);
 	};
 	this.start = function() {
@@ -142,18 +143,30 @@ function startContentPlaybackInterval() {
 	console.log('Starting playback of content.');
 	
 	playerPlaybackInterval = new Timer(currentDuration, function() {
-		console.log('The last layout showed for '+(currentDuration/1000)+' seconds.');
-		if (version == 'v1') {
-			currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
-			currentDuration = parseInt( _layoutLoader.find('#delay').text() );
+		if (contentPlaybackIntervalAlternator) {
+			--contentPlaybackIntervalAlternator;
+			console.log('The current slide will show for '+(currentDuration/1000)+' seconds.');
+			if (version == 'v1') {
+				currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
+			}
+			else if (version == 'v2') {
+				layouts.dequeue(); // remove the layout we've already used from the queue.
+			}
+			setPlayerTabContent();
+		}
+		else if (!contentPlaybackIntervalAlternator) {
+			++contentPlaybackIntervalAlternator;
+			//Load content between slides. (v1 only)
+			
+			// stop the timer, set remaining time to 0, then resume after the next layout is retrieved.
+			playerPlaybackInterval.pause();
+			playerPlaybackInterval.setRemaining(0);
 			isGettingLayout = true;
-			getLayout();
+			getLayout(function() {
+				currentDuration = parseInt( _layoutLoader.find('#delay').text() );
+				playerPlaybackInterval.resume();
+			});
 		}
-		else if (version == 'v2') {
-			layouts.dequeue(); // remove the layout we've already used from the queue.
-		}
-		
-		setPlayerTabContent();
 	});
 }
 
@@ -173,16 +186,16 @@ function next() {
 	playerPlaybackInterval.resume();
 }
 function stats() {
-	console.log('Toggling stats view.');
-	var _buffer = $('<div>');
-	_buffer.load('http://127.0.0.1:3437/?action=stats', function() {
-		if (playerConnection) {
-			playerConnection.postMessage({
-				toggleStats: true,
-				statsData: _buffer.html()
-			});
-		}
-	});
+	// console.log('Toggling stats view.');
+	// var _buffer = $('<div>');
+	// _buffer.load('http://127.0.0.1:3437/?action=stats', function() {
+		// if (playerConnection) {
+			// playerConnection.postMessage({
+				// toggleStats: true,
+				// statsData: _buffer.html()
+			// });
+		// }
+	// });
 }
 
 function doKeyAction(e) { // requires Timer class
@@ -239,23 +252,23 @@ function setPollForContentAvailable() {
 	pollForContentAvailable = setInterval(function() {
 		if (version == 'v1') {
 			if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
+				clearInterval(pollForContentAvailable);
 				console.log('Initial content available.');
 				console.log('Setting up initial content.');
 				currentLayoutHtml = _layoutLoader.html();
 				currentDuration = _layoutLoader.find('#delay').text();
+				console.log('The current slide will show for '+(currentDuration/1000)+' seconds.');
 				setPlayerTabContent();
 				startContentPlaybackInterval(); // uses currentDuration, so don't call getLayout() until after.
-				getLayout(); // TODO: put above previous line?
-				clearInterval(pollForContentAvailable);
 			}
 		}
 		else if (version == 'v2') {
 			if (layouts.getLength()) {  // if we have some initial content: start playing stuff, clear this interval.
+				clearInterval(pollForContentAvailable);
 				console.log('Initial content available.');
 				console.log('Setting up initial content.');
 				setPlayerTabContent();
 				startContentPlaybackInterval();
-				clearInterval(pollForContentAvailable);
 			}
 		}
 	}, 100);
