@@ -71,9 +71,27 @@ html, body {
 
 
 
+#stats {
+	position: absolute;
+	top: 40px;
+	left: 40px;
+	z-index: 2; /*Above the layout container.*/
+	width: 400px;
+	height: auto;
+	display: none; /*initially*/
+}
+
+
+
+
+
 #layoutContainer {
+	/*position: absolute;
+	top: 0px;
+	left: 0px;*/
 	width: 100%;
 	height: 100%;
+	z-index: 1;
 }
 
 

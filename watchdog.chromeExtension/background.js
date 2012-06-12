@@ -173,6 +173,16 @@ function next() {
 	playerPlaybackInterval.resume();
 }
 function stats() {
+	console.log('Toggling stats view.');
+	var _buffer = $('<div>');
+	_buffer.load('http://127.0.0.1:3437/?action=stats', function() {
+		if (playerConnection) {
+			playerConnection.postMessage({
+				toggleStats: true,
+				statsData: _buffer.html()
+			});
+		}
+	});
 }
 
 function doKeyAction(e) { // requires Timer class
@@ -180,21 +190,24 @@ function doKeyAction(e) { // requires Timer class
 	if (!e) e = window.event;
 	if (e.keyCode) code = e.keyCode;
 	if (code === 32) { // space
+		console.log('[Spacebar]');
 		if (playerPlaybackInterval.isPaused()) {
+			console.log('Resuming playback.');
 			playerPlaybackInterval.resume();
 			playerConnection.postMessage({
 				playbackResumed: true
 			});
 		} else {
+			console.log('Pausing playback.');
 			playerPlaybackInterval.pause();
 			playerConnection.postMessage({
 				playbackPaused: true
 			});
 		}
 	}
-	else if (code === 66) { back(); } // b
-	else if (code === 77) { stats(); } // m
-	else if (code === 78) { next(); } // n
+	else if (code === 66) { console.log('[b]'); back(); } // b
+	else if (code === 77) { console.log('[m]'); stats(); } // m
+	else if (code === 78) { console.log('[n]'); next(); } // n
 }
 
 

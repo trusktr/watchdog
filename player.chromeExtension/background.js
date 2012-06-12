@@ -63,6 +63,11 @@ function reportKeyAction(e) {
 	}
 };
 
+function toggleStats(statsData) {
+	$('#stats').html(statsData);
+	$('#stats').toggle();
+}
+
 
 chrome.extension.onConnectExternal.addListener(function(port) {
 	watchdogConnection = port;
@@ -86,6 +91,9 @@ chrome.extension.onConnectExternal.addListener(function(port) {
 			for (var i=0; i<vids.length; i++) {
 				vids[i].pause();
 			}
+		}
+		if (msg.toggleStats) {
+			toggleStats(msg.statsData);
 		}
 	});
 	watchdogConnection.onDisconnect.addListener(function() {
