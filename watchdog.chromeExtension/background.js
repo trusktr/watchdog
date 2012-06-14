@@ -198,7 +198,21 @@ function stats() {
 	});
 }
 
+var keySequence = "";
 function doKeyAction(e) { // requires Timer class
+	var tmpKeyArray = [];
+	keySequence += e.keyCode + ',';
+	if (keySequence.indexOf('69,88,73,84') != -1) { // if "exit" is typed.
+		// exit
+		$('<div>').load('http://127.0.0.1:3437/?action=close');
+		chrome.windows.remove(playerTab.windowId, function() {});
+	}
+	if (keySequence.length > 20) {
+		console.log('keySequence trimmed.');
+		tmpKeyArray = keySequence.split(',');
+		tmpKeyArray.splice(0, 2);
+		keySequence = tmpKeyArray.join(',');
+	}
 	var code;
 	if (!e) e = window.event;
 	if (e.keyCode) code = e.keyCode;
