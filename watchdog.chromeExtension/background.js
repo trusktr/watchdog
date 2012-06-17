@@ -52,7 +52,7 @@ function createPlayerWindow(callback) {
 }
 
 
-var _layoutLoader;
+var layoutContent;
 
 function getLayout(callback) {
 	console.log('Getting layout content.');
@@ -61,13 +61,33 @@ function getLayout(callback) {
 		jsonComplete = false;
 	
 	if (version == 'v1') {
-		_layoutLoader = $('<div id="layoutLoader"></div>');
-		
-		_layoutLoader.load('http://127.0.0.1:3437/?action='+getLayoutAction+' div', function(){
-			isGettingLayout = false;
-			getLayoutAction = 'update'; // reset this in case it was changed.
-			console.log('Done getting layout content.');
-			if (typeof callback == 'function') callback();
+		$.ajax({
+			url: 'http://127.0.0.1:3437/',
+			data: {action: getLayoutAction},
+			type: 'get',
+			success: function(data, textStatus, jqXHR) {
+				
+				/*The following might fail if the layout content format changes.*/
+				data = data.split('<body')[1];
+				var tmp = data.indexOf('>');
+				data = data.substr(tmp+1);
+				if ( data.indexOf('<script') ) {
+					data = data.split('<script');
+					tmp = data[1].indexOf('>');
+					data[1] = data[1].substr(tmp+1);
+					data[1] = data[1].split('</script>')[1];
+				}
+				data[1] = data[1].split('</body>')[0];
+				data = data.join('');
+				
+				layoutContent = data;
+				console.log('-------- layout HTML: '+layoutContent);
+				
+				isGettingLayout = false;
+				getLayoutAction = 'update'; // reset this in case it was changed.
+				console.log('Done getting layout content.');
+				if (typeof callback == 'function') callback();
+			}
 		});
 	}
 	else if (version == 'v2') {
@@ -147,7 +167,8 @@ function startContentPlaybackInterval() {
 			--contentPlaybackIntervalAlternator;
 			console.log('The current slide will show for '+(currentDuration/1000)+' seconds.');
 			if (version == 'v1') {
-				currentLayoutHtml = _layoutLoader.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
+				// currentLayoutHtml = layoutContent.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
+				currentLayoutHtml = layoutContent; // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
 			}
 			else if (version == 'v2') {
 				layouts.dequeue(); // remove the layout we've already used from the queue.
@@ -163,7 +184,8 @@ function startContentPlaybackInterval() {
 			playerPlaybackInterval.setRemaining(0);
 			isGettingLayout = true;
 			getLayout(function() {
-				currentDuration = parseInt( _layoutLoader.find('#delay').text() );
+				// currentDuration = parseInt( layoutContent.find('#delay').text() );
+				currentDuration = parseInt( layoutContent.split("<div style='display: none' id='delay'>")[1].split('</div>')[0] );
 				playerPlaybackInterval.resume();
 			});
 		}
@@ -265,12 +287,14 @@ function setPollForContentAvailable() {
 	var pollForContentAvailable;
 	pollForContentAvailable = setInterval(function() {
 		if (version == 'v1') {
-			if (_layoutLoader) { // if we have some initial content: start playing stuff, clear this interval.
+			if (layoutContent) { // if we have some initial content: start playing stuff, clear this interval.
 				clearInterval(pollForContentAvailable);
 				console.log('Initial content available.');
 				console.log('Setting up initial content.');
-				currentLayoutHtml = _layoutLoader.html();
-				currentDuration = _layoutLoader.find('#delay').text();
+				// currentLayoutHtml = layoutContent.html();
+				currentLayoutHtml = layoutContent;
+				// currentDuration = layoutContent.find('#delay').text();
+				currentDuration = parseInt( layoutContent.split("<div style='display: none' id='delay'>")[1].split('</div>')[0] );
 				console.log('The current slide will show for '+(currentDuration/1000)+' seconds.');
 				setPlayerTabContent();
 				startContentPlaybackInterval(); // uses currentDuration, so don't call getLayout() until after.

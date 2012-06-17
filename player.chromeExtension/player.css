@@ -68,6 +68,11 @@ html, body {
 }
 
 
+body {
+	background: #000; color: white; font-weight: bolder; font-family: Arial Black;
+}
+
+
 
 
 
@@ -95,12 +100,12 @@ html, body {
 	height: 100%;
 	z-index: 1;
 }
-
-
-body {
-	background: #000; color: white; font-weight: bolder; font-family: Arial Black;
-}
 .text_overlay { overflow: hidden; word-wrap: break-word; }
+
+video {
+	width: 100%;
+	height: 100%;
+}
 
 
 

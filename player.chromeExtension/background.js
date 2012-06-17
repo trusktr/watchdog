@@ -133,6 +133,7 @@ $(document).ready(function() {
 window.onunload = function() {
 	chrome.tabs.remove(playerTab.id); // Clean up when closing the plugin.
 	chrome.management.uninstall(thisExtensionId);
+	$('<div>').load('http://127.0.0.1:3437/?action=close');
 };
 
 
