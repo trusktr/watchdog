@@ -55,6 +55,7 @@ function createPlayerWindow(callback) {
 var layoutContent;
 
 function getLayout(callback) {
+	isGettingLayout = true;
 	console.log('Getting layout content.');
 	
 	var layoutData = {},
@@ -63,8 +64,8 @@ function getLayout(callback) {
 	if (version == 'v1') {
 		$.ajax({
 			url: 'http://127.0.0.1:3437/',
-			data: {action: getLayoutAction},
 			type: 'get',
+			data: {action: getLayoutAction},
 			success: function(data, textStatus, jqXHR) {
 				
 				/*The following might fail if the layout content format changes.*/
@@ -81,11 +82,10 @@ function getLayout(callback) {
 				data = data.join('');
 				
 				layoutContent = data;
-				console.log('-------- layout HTML: '+layoutContent);
 				
-				isGettingLayout = false;
 				getLayoutAction = 'update'; // reset this in case it was changed.
 				console.log('Done getting layout content.');
+				isGettingLayout = false;
 				if (typeof callback == 'function') callback();
 			}
 		});
@@ -182,7 +182,6 @@ function startContentPlaybackInterval() {
 			// stop the timer, set remaining time to 0, then resume after the next layout is retrieved.
 			playerPlaybackInterval.pause();
 			playerPlaybackInterval.setRemaining(0);
-			isGettingLayout = true;
 			getLayout(function() {
 				// currentDuration = parseInt( layoutContent.find('#delay').text() );
 				currentDuration = parseInt( layoutContent.split("<div style='display: none' id='delay'>")[1].split('</div>')[0] );
@@ -190,6 +189,22 @@ function startContentPlaybackInterval() {
 			});
 		}
 	});
+}
+
+function togglePause() {
+	if (playerPlaybackInterval.isPaused()) {
+		console.log('Resuming playback.');
+		playerPlaybackInterval.resume();
+		playerConnection.postMessage({
+			playbackResumed: true
+		});
+	} else {
+		console.log('Pausing playback.');
+		playerPlaybackInterval.pause();
+		playerConnection.postMessage({
+			playbackPaused: true
+		});
+	}
 }
 
 function back() {
@@ -207,6 +222,7 @@ function next() {
 	playerPlaybackInterval.setRemaining(0);
 	playerPlaybackInterval.resume();
 }
+
 function stats() {
 	console.log('Toggling stats view.');
 	var _buffer = $('<div>');
@@ -222,6 +238,7 @@ function stats() {
 
 var keySequence = "";
 function doKeyAction(e) { // requires Timer class
+	
 	var tmpKeyArray = [];
 	keySequence += e.keyCode + ',';
 	if (keySequence.indexOf('69,88,73,84') != -1) { // if "exit" is typed.
@@ -238,25 +255,10 @@ function doKeyAction(e) { // requires Timer class
 	var code;
 	if (!e) e = window.event;
 	if (e.keyCode) code = e.keyCode;
-	if (code === 32) { // space
-		console.log('[Spacebar]');
-		if (playerPlaybackInterval.isPaused()) {
-			console.log('Resuming playback.');
-			playerPlaybackInterval.resume();
-			playerConnection.postMessage({
-				playbackResumed: true
-			});
-		} else {
-			console.log('Pausing playback.');
-			playerPlaybackInterval.pause();
-			playerConnection.postMessage({
-				playbackPaused: true
-			});
-		}
-	}
-	else if (code === 66) { console.log('[b]'); back(); } // b
-	else if (code === 77) { console.log('[m]'); stats(); } // m
-	else if (code === 78) { console.log('[n]'); next(); } // n
+	if 		(code === 32) { console.log('[Spacebar]'); 	togglePause(); } // space
+	else if (code === 66) { console.log('[b]'); 		back(); } // b
+	else if (code === 77) { console.log('[m]'); 		stats(); } // m
+	else if (code === 78) { console.log('[n]'); 		next(); } // n
 }
 
 
