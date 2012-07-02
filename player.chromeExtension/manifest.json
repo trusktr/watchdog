@@ -1,8 +1,8 @@
 {
 	"name": "Player",
 	"version": "1.0",
-	"manifest_version": 2,
-	"description": "Plays content as instructed.",
+	"manifest_version": 1,
+	"description": "Displays content.",
 	"browser_action": {
 		"default_icon": "icon.png",
 		"default_popup": "popup.html"
