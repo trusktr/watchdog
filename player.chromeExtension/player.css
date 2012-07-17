@@ -65,12 +65,15 @@
 html, body {
 	width: 100%;
 	height: 100%;
-	cursor: none;
 }
 
 
 body {
 	background: #000; color: white; font-weight: bolder; font-family: Arial Black;
+}
+
+* {
+	cursor: none !important;
 }
 
 
