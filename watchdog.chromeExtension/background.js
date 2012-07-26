@@ -165,6 +165,7 @@ function startContentPlaybackInterval() {
 	playerPlaybackInterval = new Timer(currentDuration, function() {
 		if (contentPlaybackIntervalAlternator) {
 			console.log('The current slide will show for '+(currentDuration/1000)+' seconds.');
+			playerPlaybackInterval.pause();
 			if (version == 'v1') {
 				--contentPlaybackIntervalAlternator;
 				// currentLayoutHtml = layoutContent.html(); // will be the layout to play after the current slide's duration (see the if statement directly below this call to dynamicSetInterval()).
@@ -174,11 +175,12 @@ function startContentPlaybackInterval() {
 				// layouts.dequeue(); // remove the layout we've already used from the queue.
 			}
 			setPlayerTabContent();
+			playerPlaybackInterval.resume(); // TODO make sure this gets executed after the instant media content has started rendering to maximize ttl display time accuracy.
 		}
 		else if (!contentPlaybackIntervalAlternator) {
-			++contentPlaybackIntervalAlternator;
-			
 			/*Load content between slides. (v1 only)*/
+			
+			//TODO block keyboard commands while in this alternation.
 			
 			// stop the timer, set remaining time to 0, then resume after the next layout's info is ready.
 			playerPlaybackInterval.pause();
@@ -188,6 +190,7 @@ function startContentPlaybackInterval() {
 				getLayout(function() {
 					// currentDuration = parseInt( layoutContent.find('#delay').text() );
 					currentDuration = parseInt( layoutContent.split("<div style='display: none' id='delay'>")[1].split('</div>')[0] );
+					++contentPlaybackIntervalAlternator;
 					playerPlaybackInterval.resume();
 				});
 			}
@@ -195,6 +198,7 @@ function startContentPlaybackInterval() {
 				getLayout(); // asynchronous
 				layouts.dequeue();
 				currentDuration = parseInt( layouts.peek().ttl );
+				++contentPlaybackIntervalAlternator;
 				playerPlaybackInterval.resume();
 			}
 		}
