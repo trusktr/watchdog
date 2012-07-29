@@ -80,6 +80,20 @@ body {
 
 
 
+
+
+
+
+
+
+
+
+
+
+.hidden {
+	display: none;
+}
+
 #stats {
 	position: absolute;
 	top: 40px;

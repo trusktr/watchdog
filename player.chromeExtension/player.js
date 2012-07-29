@@ -2,9 +2,28 @@
 var backgroundPage = chrome.extension.getBackgroundPage(); // The JavaScript 'window' object of the background page.
 var isPlayerWindow = function() { return true; };
 
+function when_images_loaded($img_container, callback) { //do callback when images in $img_container are loaded. Only works when ALL images in $img_container are newly inserted images.
+	var img_length = $img_container.find('img').length,
+		img_load_cntr = 0;
+		
+	if (img_length) { //if the $img_container contains new images.
+		$('img').on('load', function() { //then we avoid the callback until images are loaded
+			img_load_cntr++;
+			if (img_load_cntr == img_length) {
+				//console.log("one!");
+				callback();
+			}
+		});
+	}
+	else { //otherwise just do the main callback action if there's no images in $img_container.
+		callback();
+	}
+}
+
 function setContent(version, layoutData) {
+	var _layoutContainer = $('#layoutContainer');
 	if (version == 'v1') {
-		$('#layoutContainer').html(layoutData);
+		_layoutContainer.addClass('hidden').html(layoutData);
 	}
 	else if (version == 'v2') {
 		// receives a layout object then creates the HTML layout to put in #layoutContainer
@@ -44,7 +63,7 @@ function setContent(version, layoutData) {
 					 +              content
 					 + "        </div>";
 		}
-		$('#layoutContainer').html(pagedata);
+		_layoutContainer.addClass('hidden').html(pagedata);
 	
 		/*Sample data:*/
 		// var layoutData = {
@@ -69,6 +88,9 @@ function setContent(version, layoutData) {
 			// "overlays": []
 		// };
 	}
+	when_images_loaded(_layoutContainer, function() {
+		_layoutContainer.removeClass('hidden');
+	});
 }
 
 $(document).ready(function() {
