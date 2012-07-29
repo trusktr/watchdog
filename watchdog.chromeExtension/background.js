@@ -11,6 +11,7 @@ var version = 'v1',
 	currentDuration = 0, // for v1
 	getLayoutAction = 'update', // for v1
 	isGettingLayout = false, // for v1
+	isLoading = false,
 	
 	playerWindowReady = false,
 	playerTab,
@@ -143,6 +144,7 @@ function Timer(duration, action/*TODO: ,autostart*/) {
 		paused = false;
 		start = new Date();
 		timerId = window.setTimeout(function() {
+			isLoading = true; //
 			playerPlaybackInterval = new Timer(currentDuration, action);
 			action();
 		}, remaining);
@@ -164,6 +166,8 @@ function startContentPlaybackInterval() {
 	
 	playerPlaybackInterval = new Timer(currentDuration, function() {
 		if (contentPlaybackIntervalAlternator) {
+			isLoading = false;
+			
 			console.log('The current slide will show for '+(currentDuration/1000)+' seconds.');
 			playerPlaybackInterval.pause();
 			if (version == 'v1') {
@@ -176,9 +180,11 @@ function startContentPlaybackInterval() {
 			}
 			setPlayerTabContent();
 			playerPlaybackInterval.resume(); // TODO make sure this gets executed after the instant media content has started rendering to maximize ttl display time accuracy.
+		
 		}
 		else if (!contentPlaybackIntervalAlternator) {
 			/*Load content between slides. (v1 only)*/
+			isLoading = true;
 			
 			//TODO block keyboard commands while in this alternation.
 			
@@ -206,48 +212,60 @@ function startContentPlaybackInterval() {
 }
 
 function togglePause() {
-	if (playerPlaybackInterval.isPaused()) {
-		console.log('Resuming playback.');
-		playerPlaybackInterval.resume();
-		playerConnection.postMessage({
-			playbackResumed: true
-		});
-	} else {
-		console.log('Pausing playback.');
-		playerPlaybackInterval.pause();
-		playerConnection.postMessage({
-			playbackPaused: true
-		});
+	if (!isLoading) {
+		isLoading = true; //
+		if (playerPlaybackInterval.isPaused()) {
+			console.log('Resuming playback.');
+			playerPlaybackInterval.resume();
+			playerConnection.postMessage({
+				playbackResumed: true
+			});
+		} else {
+			console.log('Pausing playback.');
+			playerPlaybackInterval.pause();
+			playerConnection.postMessage({
+				playbackPaused: true
+			});
+		}
 	}
 }
 
 function back() {
-	console.log('Going to previous slide.');
-	getLayoutAction = 'back'; // FIXME: the next and back commands happen one slide late. 
-	playerPlaybackInterval.pause();
-	playerPlaybackInterval.setRemaining(0);
-	playerPlaybackInterval.resume();
+	if (!isLoading) {
+		isLoading = true; //
+		console.log('Going to previous slide.');
+		playerPlaybackInterval.pause();
+		getLayoutAction = 'back'; // FIXME: the next and back commands happen one slide late. 
+		playerPlaybackInterval.setRemaining(0);
+		playerPlaybackInterval.resume();
+	}
 }
 
 function next() {
-	console.log('Going to next slide.');
-	getLayoutAction = 'next';
-	playerPlaybackInterval.pause();
-	playerPlaybackInterval.setRemaining(0);
-	playerPlaybackInterval.resume();
+	if (!isLoading) {
+		isLoading = true; //
+		console.log('Going to next slide.');
+		playerPlaybackInterval.pause();
+		getLayoutAction = 'next';
+		playerPlaybackInterval.setRemaining(0);
+		playerPlaybackInterval.resume();
+	}
 }
 
 function stats() {
-	console.log('Toggling stats view.');
-	var _buffer = $('<div>');
-	_buffer.load('http://127.0.0.1:3437/?action=stats', function() {
-		if (playerConnection) {
-			playerConnection.postMessage({
-				toggleStats: true,
-				statsData: _buffer.html()
-			});
-		}
-	});
+	if (!isLoading) {
+		isLoading = true;
+		console.log('Toggling stats view.');
+		var _buffer = $('<div>');
+		_buffer.load('http://127.0.0.1:3437/?action=stats', function() {
+			if (playerConnection) {
+				playerConnection.postMessage({
+					toggleStats: true,
+					statsData: _buffer.html()
+				});
+			}
+		});
+	}
 }
 
 var keySequence = "";
