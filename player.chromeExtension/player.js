@@ -93,6 +93,46 @@ function setContent(version, layoutData) {
 	});
 }
 
+function Timer(duration, action/*TODO: ,autostart*/) {
+	var timerId, paused, start, remaining = duration;
+	this.pause = function() {
+		paused = true;
+		window.clearTimeout(timerId);
+		remaining -= new Date() - start;
+	};
+	this.stop = function() {
+		paused = true;
+		window.clearTimeout(timerId);
+		remaining = duration; // back to the beginning.
+	};
+	this.resume = function() {
+		paused = false;
+		start = new Date();
+		timerId = window.setTimeout(function() {
+			action();
+		}, remaining);
+	};
+	this.start = function() {
+		this.resume();
+	}
+	this.isPaused = function() {
+		return paused;
+	};
+	this.setRemaining = function(newValue) {
+		remaining = newValue;
+	};
+	this.increaseTime = function(amount) {
+		remaining = remaining + amount;
+	};
+	this.decreaseTime = function(amount) {
+		remaining = (remaining-amount >= 0 ? remaining-amount : 0);
+	};
+	this.getRemaining = function() {
+		return remaining;
+	};
+	this.resume(); // if autostart. (TODO)
+};
+
 $(document).ready(function() {
 	// ready, so notify the background page.
 	backgroundPage.reportPlayerTabReady(window);
@@ -106,6 +146,88 @@ $(document).ready(function() {
 		console.log('Reporting key action.');
 		backgroundPage.reportKeyAction(e);
 	});
+	
+	
+	var touchInterfaceClicks = 0;
+	$('#nextButton').on('click', function() {
+		touchInterfaceClicks++;
+		var e = jQuery.Event('keyup');
+		e.keyCode = 78; // # Some key code value
+		$(window).trigger(e);
+	});
+	
+	$('#previousButton').on('click', function() {
+		touchInterfaceClicks++;
+		var e = jQuery.Event('keyup');
+		e.keyCode = 66; // # Some key code value
+		$(window).trigger(e);
+	});
+	
+	$('#pauseButton').on('click', function() {
+		touchInterfaceClicks++;
+		var e = jQuery.Event('keyup');
+		e.keyCode = 32; // # Some key code value
+		$(window).trigger(e);
+	});
+	
+	$('#statsButton').on('click', function() {
+		touchInterfaceClicks++;
+		var e = jQuery.Event('keyup');
+		e.keyCode = 77; // # Some key code value
+		$(window).trigger(e);
+	});
+	
+	function setTouchControls() {
+		console.log('Setting the click event for touch controls.');
+		$('#touchControls').on('click', function() {
+			console.log('Touch controls activated.');
+			$('#touchControls').off('click');
+			var buttonsVisibleCount = 0;
+			var buttonsHiddenCount = 0;
+			$('#touchControls button').stop().fadeIn(function() {
+				buttonsVisibleCount++;
+			});
+			var pollForTouchInterfaceVisible = setInterval(function() {
+				var numberOfClicksWhenVisible;
+				
+				if (buttonsVisibleCount == $('#touchControls button').length) {
+					//touch interface is now visible.
+					clearInterval(pollForTouchInterfaceVisible);
+					
+					numberOfClicksWhenVisible = touchInterfaceClicks = 0;
+					
+					var pollForClicksMadeWhileInterfaceVisible;
+					
+					var timerUntilInterfaceHidden = new Timer(5000, function() {
+						timerUntilInterfaceHidden = null;
+						$('#touchControls button').stop().fadeOut(function() {
+							buttonsHiddenCount++;
+						});
+						var pollForTouchInterfaceHidden = setInterval(function() {
+							if (buttonsHiddenCount == $('#touchControls button').length) {
+								//touch interface is now hidden.
+								clearInterval(pollForTouchInterfaceHidden);
+								clearInterval(pollForClicksMadeWhileInterfaceVisible);
+								setTouchControls();
+							}
+						}, 50);
+					});
+				
+					pollForClicksMadeWhileInterfaceVisible = setInterval(function() {
+						if (numberOfClicksWhenVisible != touchInterfaceClicks && timerUntilInterfaceHidden.getRemaining() >= 0) {
+							// a click has been made while the touch interface is visible so let's extend the time until the interface gets hidden.
+							numberOfClicksWhenVisible = touchInterfaceClicks = 0;
+							timerUntilInterfaceHidden.pause();
+							timerUntilInterfaceHidden.setRemaining(5000);
+							timerUntilInterfaceHidden.resume();
+						}
+					}, 50);
+				}
+			}, 50);
+		});
+	}
+	setTouchControls();
+	
 });
 
 $(window).on('load', function() {

@@ -72,9 +72,6 @@ body {
 	background: #000; color: white; font-weight: bolder; font-family: Arial Black;
 }
 
-* {
-	cursor: none !important;
-}
 
 
 
@@ -93,6 +90,48 @@ body {
 .hidden {
 	display: none;
 }
+
+#touchControls {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 10; /*Above the everything.*/
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	margin: 0;
+}
+#touchControls, #touchControls * {
+	/*cursor: none !important;*/
+}
+	#touchControls button { /*initially hidden*/
+		display: none;
+		border: 0;
+		background: rgba(0, 0, 0, 0.5);
+		color: #fff;
+		font-size: 6rem;
+		font-weight: bold;
+	}
+	#previousButton {
+		position: absolute;
+		top: 50%;
+		left: 0;
+	}
+	#pauseButton {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+	}
+	#nextButton {
+		position: absolute;
+		top: 50%;
+		right: 0;
+	}
+	#statsButton {
+		position: absolute;
+		top: 0;
+		left: 0;
+	}
 
 #stats {
 	position: absolute;

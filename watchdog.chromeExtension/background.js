@@ -126,7 +126,6 @@ function setPlayerTabContent() {
 }
 
 var playerPlaybackInterval;
-var contentPlaybackIntervalAlternator = 0;
 
 function Timer(duration, action/*TODO: ,autostart*/) {
 	var timerId, paused, start, remaining = duration;
@@ -161,6 +160,7 @@ function Timer(duration, action/*TODO: ,autostart*/) {
 	this.resume(); // if autostart.
 };
 
+var contentPlaybackIntervalAlternator = 0;
 function startContentPlaybackInterval() {
 	console.log('Starting playback of content.');
 	
