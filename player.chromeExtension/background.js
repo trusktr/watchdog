@@ -63,9 +63,16 @@ function reportKeyAction(e) {
 	}
 };
 
-function toggleStats(statsData) {
+function showStats() {
+	playerWindow.$('#stats').show();
+}
+
+function refreshStats(statsData) {
 	playerWindow.$('#stats').html(statsData);
-	playerWindow.$('#stats').toggle();
+}
+
+function hideStats() {
+	playerWindow.$('#stats').hide();
 }
 
 
@@ -92,8 +99,14 @@ chrome.extension.onConnectExternal.addListener(function(port) {
 				vids[i].pause();
 			}
 		}
-		if (msg.toggleStats) {
-			toggleStats(msg.statsData);
+		if (msg.showStats) {
+			showStats();
+		}
+		if (msg.refreshStats) {
+			refreshStats(msg.statsData);
+		}
+		if (msg.hideStats) {
+			hideStats();
 		}
 	});
 	watchdogConnection.onDisconnect.addListener(function() {

@@ -213,7 +213,7 @@ function startContentPlaybackInterval() {
 
 function togglePause() {
 	if (!isLoading) {
-		isLoading = true; //
+		//isLoading = true; //this line is only needed for actions that cause the player to load a new slide.
 		if (playerPlaybackInterval.isPaused()) {
 			console.log('Resuming playback.');
 			playerPlaybackInterval.resume();
@@ -235,7 +235,7 @@ function back() {
 		isLoading = true; //
 		console.log('Going to previous slide.');
 		playerPlaybackInterval.pause();
-		getLayoutAction = 'back'; // FIXME: the next and back commands happen one slide late. 
+		getLayoutAction = 'back';
 		playerPlaybackInterval.setRemaining(0);
 		playerPlaybackInterval.resume();
 	}
@@ -252,23 +252,54 @@ function next() {
 	}
 }
 
+var statsAlternator = 1,
+	statsRefreshInterval;
 function stats() {
-	if (!isLoading) {
-		isLoading = true;
+	//if (!isLoading) {
+		//isLoading = true; //this line is only needed for actions that cause the player to load a new slide.
 		console.log('Toggling stats view.');
-		var _buffer = $('<div>');
-		_buffer.load('http://127.0.0.1:3437/?action=stats', function() {
-			if (playerConnection) {
-				playerConnection.postMessage({
-					toggleStats: true,
-					statsData: _buffer.html()
+		
+		if (statsAlternator) {
+			statsAlternator--;
+			function showStats() {
+				if (playerConnection) {
+					playerConnection.postMessage({
+						showStats: true
+					});
+				}
+			}
+			showStats();
+			function refreshStats() {
+				var _buffer = $('<div>');
+				_buffer.load('http://127.0.0.1:3437/?action=stats', function() {
+					if (playerConnection) {
+						playerConnection.postMessage({
+							refreshStats: true,
+							statsData: _buffer.html()
+						});
+					}
 				});
 			}
-		});
-	}
+			statsRefreshInterval = setInterval(function() {
+				refreshStats();
+			}, 1000);
+		}
+		else {
+			statsAlternator++;
+			clearInterval(statsRefreshInterval);
+			function hideStats() {
+				if (playerConnection) {
+					playerConnection.postMessage({
+						hideStats: true
+					});
+				}
+			}
+			hideStats();
+		}
+	//}
 }
 
-var keySequence = "";
+var keySequence = '';
 function doKeyAction(e) { // requires Timer class
 	
 	var tmpKeyArray = [];

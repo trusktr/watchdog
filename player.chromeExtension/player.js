@@ -180,7 +180,7 @@ $(document).ready(function() {
 	function setTouchControls() {
 		console.log('Setting the click event for touch controls.');
 		$('#touchControls').on('click', function() {
-			console.log('Touch controls activated.');
+			console.log('Initiating touch controls.');
 			$('#touchControls').off('click');
 			var buttonsVisibleCount = 0;
 			var buttonsHiddenCount = 0;
@@ -192,6 +192,7 @@ $(document).ready(function() {
 				
 				if (buttonsVisibleCount == $('#touchControls button').length) {
 					//touch interface is now visible.
+					console.log('Touch interface is now visible.');
 					clearInterval(pollForTouchInterfaceVisible);
 					
 					numberOfClicksWhenVisible = touchInterfaceClicks = 0;
@@ -201,11 +202,12 @@ $(document).ready(function() {
 					var timerUntilInterfaceHidden = new Timer(5000, function() {
 						timerUntilInterfaceHidden = null;
 						$('#touchControls button').stop().fadeOut(function() {
-							buttonsHiddenCount++;
+							buttonsHiddenCount++; // incrememnted once for each button that is faded out.
 						});
 						var pollForTouchInterfaceHidden = setInterval(function() {
 							if (buttonsHiddenCount == $('#touchControls button').length) {
 								//touch interface is now hidden.
+								console.log('Touch interface is now hidden.');
 								clearInterval(pollForTouchInterfaceHidden);
 								clearInterval(pollForClicksMadeWhileInterfaceVisible);
 								setTouchControls();
