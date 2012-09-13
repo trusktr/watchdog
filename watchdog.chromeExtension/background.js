@@ -213,7 +213,7 @@ function startContentPlaybackInterval() {
 
 function togglePause() {
 	if (!isLoading) {
-		//isLoading = true; //this line is only needed for actions that cause the player to load a new slide.
+		//isLoading = true; //This action doesn't cause a new slide to be loaded so isLoading will not be true, thus it is commented out.
 		if (playerPlaybackInterval.isPaused()) {
 			console.log('Resuming playback.');
 			playerPlaybackInterval.resume();

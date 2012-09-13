@@ -163,11 +163,22 @@ $(document).ready(function() {
 		$(window).trigger(e);
 	});
 	
+	var playPauseState = 1; // 1 means playing, 0 means paused.
 	$('#pauseButton').on('click', function() {
 		touchInterfaceClicks++;
 		var e = jQuery.Event('keyup');
 		e.keyCode = 32; // # Some key code value
 		$(window).trigger(e);
+		if (playPauseState == 1) {
+			playPauseState--;
+			$('#pauseButton img').attr('src', 'media_play.png');
+			$('#pauseButton span').text('Press to Play');
+		}
+		else {
+			playPauseState++;
+			$('#pauseButton img').attr('src', 'media_pause.png');
+			$('#pauseButton span').text('Press to Pause');
+		}
 	});
 	
 	$('#statsButton').on('click', function() {
